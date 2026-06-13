@@ -85,6 +85,39 @@ body::before {
   touch-action: manipulation;
 }
 
+@keyframes fairpass-scan {
+  0% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.95;
+  }
+  88% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateX(11px);
+    opacity: 0;
+  }
+}
+
+.group:hover .fairpass-scan,
+.group:focus-visible .fairpass-scan {
+  animation: fairpass-scan 0.55s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fairpass-scan {
+    display: none;
+  }
+}
+
+.fairpass-scan {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }

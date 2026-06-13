@@ -10,6 +10,7 @@ import { useNotifications } from "../../hooks/useNotifications.js";
 import { formatAccountDisplay } from "../../lib/accountDisplay.js";
 import Badge from "../ui/Badge.jsx";
 import HbarBalanceMenu from "./HbarBalanceMenu.jsx";
+import FairPassLogo from "./FairPassLogo.jsx";
 
 const purchaserLinks = [
   { href: "/", label: "Marketplace" },
@@ -49,9 +50,9 @@ export default function Nav() {
         <nav className="flex items-center justify-between gap-3 min-h-[var(--nav-height)]">
           <Link
             href={isOrganizer ? "/events" : "/"}
-            className="text-sm font-semibold tracking-tight text-text hover:text-accent transition-colors shrink-0"
+            className="group shrink-0 text-text transition-opacity hover:opacity-90 touch-manipulation"
           >
-            WC Ticket
+            <FairPassLogo />
           </Link>
 
           {/* Desktop nav */}

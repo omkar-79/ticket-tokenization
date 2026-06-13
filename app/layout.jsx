@@ -18,7 +18,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata = {
-  title: "World Cup Ticket",
+  title: "Fair Pass",
   description: "Anti-scalp NFT tickets on Hedera with World ID",
 };
 
