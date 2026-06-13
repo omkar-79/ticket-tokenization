@@ -12,7 +12,13 @@ Each World Cup ticket is an NFT on Hedera. When the organizer creates a collecti
 
 **World ID gates:**
 - **Onboarding / login** — one nullifier → one Hedera account (Sybil protection at signup).
-- **Secondary purchase** — buyer must verify World ID; nullifier stored so one human = one secondary purchase (configurable cap).
+- **Secondary purchase** — buyer must verify World ID; nullifier stored with per-event secondary cap (`SECONDARY_PURCHASE_CAP`).
+- **Gate check-in** — holder must verify World ID on the **ticket pass page** after organizer scans a signed QR; nullifier must match the account owner.
+
+**Gate anti-scam (post-resale):** Without this, a seller could keep a QR screenshot after reselling and scan at the gate before the buyer. Three layers block that:
+1. **Signed pass + `pass_generation` + expiry** — old owner QR fails immediately after resale; passes expire (~15 min).
+2. **Mirror Node** — on-chain NFT owner must match pass `ownerAccountId`.
+3. **Live World ID on pass page** — challenge/confirm flow; World App auto-opens when scan detected. Confirm is **not** shown globally on wallet (prevents buyer-at-home approving seller-at-gate).
 
 **What this is NOT:** there is no hard on-chain price cap on resales. The royalty and the World ID cap together create strong disincentives for scalping, but a determined buyer can still overpay once. That framing matters for the pitch.
 
@@ -22,8 +28,8 @@ Each World Cup ticket is an NFT on Hedera. When the organizer creates a collecti
 
 | Prize | Track | Why we qualify |
 |---|---|---|
-| Hedera Tokenization | $3,000 — anchor | Custom fees / royalties, NFT mint, on-chain transfer |
-| World ID Track B | $2,500 | Onboarding + login + resale require World ID; nullifier enforces one wallet + secondary cap |
+| Hedera Tokenization | $3,000 — anchor | Custom fees / royalties, NFT mint, on-chain transfer, Mirror Node gate verify |
+| World ID Track B | $2,500 | Onboarding + login + resale + **gate check-in** require World ID; nullifier enforces one wallet + secondary cap |
 | ENS pool | Small bolt-on | ENS subdomain as a human-readable ticket address |
 | Hedera No-Solidity | $3,000 — fallback | HCS used as an audit log (second native Hedera service, zero Solidity) |
 
@@ -37,7 +43,8 @@ Each World Cup ticket is an NFT on Hedera. When the organizer creates a collecti
 - **Network:** Hedera testnet (custodial accounts, operator pays all fees)
 - **Payment:** HBAR for the core sale; USDC planned later
 - **Proof of human:** `@worldcoin/idkit` v4 — IDKit widget + backend verify via `/api/v4/verify/{rp_id}`
-- **Database:** SQLite (`better-sqlite3`) — users, tokens, tickets, ownership in `data/users.db`
+- **Gate QR:** `react-qr-code` (holder pass) + `html5-qrcode` (organizer scanner)
+- **Database:** SQLite (`better-sqlite3`) — users, tokens, tickets, ownership, listings, gate_challenges in `data/users.db`
 
 > **SDK name trap:** The Hedera Playground and older snippets use `@hiero-ledger/sdk`. This repo uses `@hashgraph/sdk`. The API is identical; only the import changes. Don't mix them.
 
@@ -48,51 +55,74 @@ Each World Cup ticket is an NFT on Hedera. When the organizer creates a collecti
 ```
 app/
   page.jsx                              ← Marketplace (mint-on-buy at face value)
+  listings/page.jsx                     ← Public resale listings + bids
   login/page.jsx                        ← Returning user: World ID → existing account
-  onboard/page.jsx                      ← New user: World ID → create account + role
-  wallet/page.jsx                       ← My tickets, resale UI
+  onboard/page.jsx                      ← New user: World ID → create account + role + ENS
+  wallet/page.jsx                       ← My tickets, listings, bids, sales history
+  tickets/[tokenId]/[serial]/page.jsx   ← Ticket pass: signed QR + auto World ID gate confirm
+  events/page.jsx                       ← Organizer event list
+  events/[tokenId]/page.jsx             ← Gate scanner, pause/resume, ticket registry
   organizer/page.jsx                    ← Create collections (maxSupply + faceValueHbar)
-  components/Nav.jsx                    ← Global nav, log out
-  lib/storage.js                        ← localStorage session (ticket_account_id)
+  gate/[tokenId]/[serial]/page.jsx      ← Legacy URL fallback → redirect to event scanner
+  components/
+    events/GateQrScanner.jsx            ← Camera scanner + processing overlay + cancel
+    events/EventCompliancePanel.jsx     ← Initiate scan, poll challenge, cancel
+    tickets/TicketPassQr.jsx            ← Fetches signed pass from API
+    tickets/GateEntryConfirm.jsx        ← Polls challenge, auto-opens World ID
+    tickets/GateChallengeAlert.jsx      ← Wallet banner → link to pass page
+    world-id/WorldIdTrigger.jsx         ← Shared IDKit v4 (rp_context, autoStart)
+  lib/gate.js                           ← parseGateScanPayload (v2 signed pass)
   api/
-    login/route.js                      ← verify proof → lookup existing user
-    verify-and-onboard/route.js         ← verify proof → createUserAccount(60)
+    login/route.js
+    verify-and-onboard/route.js
     world-id/sign/route.js              ← RP signature for IDKit v4
-    marketplace/route.js                ← collections with faceValueHbar, remaining
-    tokens/route.js                     ← POST create collection (organizer)
-    tokens/[tokenId]/buy/route.js       ← mint-on-buy primary purchase
-    tickets/[tokenId]/[serial]/resell/  ← atomic resale + World ID on buyer
-    wallet/[accountId]/route.js         ← tickets + ownership history
+    marketplace/route.js
+    listings/                           ← CRUD + bids
+    tokens/route.js
+    tokens/[tokenId]/buy/route.js
+    tokens/[tokenId]/gate-scan/initiate/route.js  ← Validate pass + create challenge
+    tokens/[tokenId]/gate-scan/route.js           ← 410 — direct scan disabled
+    tickets/[tokenId]/[serial]/pass/route.js      ← GET signed pass (holder only)
+    tickets/[tokenId]/[serial]/gate-challenge/route.js       ← Holder poll pending
+    tickets/[tokenId]/[serial]/gate-challenge/confirm/route.js  ← World ID + freeze
+    gate-challenges/[challengeId]/route.js      ← Status poll (organizer + holder)
+    gate-challenges/[challengeId]/cancel/route.js ← Organizer cancel
+    tickets/[tokenId]/[serial]/resell/
+    wallet/[accountId]/route.js
 
 src/
-  client.js                             ← shared Hedera client factory
-  state.js                              ← loadState() / saveState() for state.json
-  lib/auth.js                           ← requireUser(), requireRole()
+  client.js
+  state.js
+  lib/
+    auth.js
+    gatePass.js                         ← HMAC v2 pass create/verify/encode
+  gate/
+    validatePass.js                     ← Sig + DB gen + Mirror owner
   db/
-    schema.sql                          ← users, tokens, tickets, ownership
-    users.js, tokens.js, tickets.js, db.js
+    schema.sql                          ← + pass_generation, gate_challenges
+    gateChallenges.js
+    users.js, tokens.js, tickets.js, listings.js, db.js
   world/
-    verifyProof.js                      ← verifyWorldIdProof(), extractNullifier()
+    verifyProof.js
   hedera/
-    createToken.js                      ← createTicketToken() — NFT collection + royalty
-    createAccount.js                    ← createUserAccount(initialHbar) — custodial wallet
-    mintTicket.js                       ← mintTickets(tokenId, supplyKey, pointers)
-    primaryPurchase.js                  ← mint → primarySale → DB (sold_primary)
-    transferTicket.js                   ← primarySale(), atomicResale()
-    compliance.js                       ← freezeHolder/unfreezeHolder/pauseToken/unpauseToken
+    createToken.js, createAccount.js, mintTicket.js
+    primaryPurchase.js, transferTicket.js, settleResale.js
+    compliance.js, venue.js             ← scanTicketAtGate, reset
+    mirror.js                           ← getNftOwner, getHbarBalance
 
 scripts/
-  01-check-balance.js                   ← prove .env + network; print operator HBAR
-  02-create-token.js                    ← [maxSupply] [faceValueHbar] [name] [symbol]; requires operator seeded in DB (run app once first)
-  03-create-account.js                  ← dev bypass: create buyer without World ID; writes buyer → state.json
-  04-mint.js                            ← DEPRECATED (superseded by mint-on-buy in 05)
-  05-primary-sale.js                    ← CLI mint-on-buy; requires tokenId + buyer in state.json
-  06-resale.js                          ← CLI atomic resale; args: [serial] [priceHbar] [sellerAccountId] [buyerAccountId]
-  07-scan-gate.js                       ← gate entry: freeze holder on-chain + mark ticket used; arg: [serial]
-  08-pause-match.js                     ← pause/unpause whole token (cancelled match); arg: [unpause]
-  09-unfreeze.js                        ← reset helper: unfreeze holder + status→owned; arg: [serial]
-  promote-organizer.js                  ← set role=organizer for any account_id in DB
-  reset-db.js                           ← delete data/users.db; restart npm run dev to re-seed operator
+  01-check-balance.js
+  02-create-token.js
+  03-create-account.js
+  04-mint.js                            ← DEPRECATED
+  05-primary-sale.js
+  06-resale.js
+  07-scan-gate.js                       ← CLI gate (bypasses World ID challenge — dev only)
+  08-pause-match.js
+  09-unfreeze.js
+  promote-organizer.js
+  reset-db.js
+  setup-dev-https.js                    ← Local certs for npm run dev:https
 ```
 
 **Rule:** `src/hedera/` functions are pure — no `console.log`, no `process.env` reads, they close the Hedera client before returning. Scripts and API routes are the runners.
@@ -107,9 +137,9 @@ scripts/
 
 | Role | How assigned | Can do |
 |---|---|---|
-| `organizer` | Selected on `/onboard` or promoted via `ADMIN_SECRET` | Create collections, receive primary sale HBAR + royalties |
+| `organizer` | Selected on `/onboard` (invite code) or promoted via `ADMIN_SECRET` | Create collections, receive primary sale HBAR + royalties, scan at gate |
 | `purchaser` | Default on onboard | Buy tickets at face value |
-| `reseller` | Auto-promoted after first primary purchase | Resell owned tickets |
+| `reseller` | Auto-promoted after first primary purchase | Resell owned tickets, list on marketplace |
 
 Operator account (`OPERATOR_ID`) is auto-seeded as `organizer` on first DB init.
 
@@ -120,7 +150,7 @@ Operator account (`OPERATOR_ID`) is auto-seeded as `organizer` on first DB init.
 | Term | Set by | Stored in | Used for |
 |---|---|---|---|
 | **Face value** | Organizer at collection creation | `tokens.primary_price_hbar` | Primary marketplace buy |
-| **Resale price** | Seller on `/wallet` | `ownership.price_hbar` on secondary transfer | Fan-to-fan resales |
+| **Resale price** | Seller on `/wallet` or bid flow | `ownership.price_hbar` on secondary transfer | Fan-to-fan resales |
 
 Primary buy API ignores any client-sent price — always uses `token.primary_price_hbar`.
 
@@ -159,38 +189,86 @@ Purchaser → POST /api/tokens/{tokenId}/buy
     → mintTickets(1 serial)
     → primarySale(NFT + HBAR at face value)
     → DB: status sold_primary, acquisition primary
+    → recordOwnership → bumpPassGeneration
 ```
 
 Organizer treasury receives face-value HBAR. No royalty on primary sale (royalty is for resales).
 
-### Secondary (resale)
+### Secondary (resale / listings)
 
 ```
-Seller on /wallet → buyer account ID + resale price → Resell
-  → buyer scans World ID
-  → POST /api/tickets/{tokenId}/{serial}/resell
-    → verify proof, check secondary cap on buyer nullifier
-    → atomicResale(NFT + HBAR in one TransferTransaction)
-    → 10% royalty to organizer on-chain automatically
-    → DB: status sold_secondary, acquisition secondary
+Seller lists on /wallet → buyer bids or buys via /listings
+  → buyer World ID on confirm
+  → atomicResale(NFT + HBAR in one TransferTransaction)
+  → 10% royalty to organizer on-chain automatically
+  → DB: status sold_secondary, acquisition secondary
+  → recordOwnership → bumpPassGeneration (invalidates seller's gate QR)
 ```
-
-Hackathon UX: seller initiates and enters buyer's account ID manually. No public resale listings page yet.
 
 ---
 
-## 10. Key Hedera facts
+## 10. Gate check-in flow
+
+### Signed pass (holder)
+
+```
+Holder on /tickets/{tokenId}/{serial}
+  → GET /api/tickets/{tokenId}/{serial}/pass  (must be current owner)
+  → HMAC v2 JSON: { v, tokenId, serial, owner, gen, exp, sig }
+  → QR refreshes before expiry (~15 min)
+```
+
+### Scan + confirm (organizer + holder)
+
+```
+Organizer → /events/{tokenId} → Scan ticket QR
+  → parseGateScanPayload (v2 signed pass only — legacy URL QRs rejected)
+  → POST /api/tokens/{tokenId}/gate-scan/initiate { pass }
+      → validateGatePassForScan: sig, expiry, pass_generation, DB owner, Mirror Node owner
+      → createGateChallenge (pending, ~3 min TTL)
+  → poll GET /api/gate-challenges/{challengeId} until confirmed
+
+Holder ticket pass page (must be open, logged in as owner):
+  → poll GET /api/tickets/{tokenId}/{serial}/gate-challenge
+  → WorldIdTrigger autoStart → World App opens
+  → POST /api/tickets/{tokenId}/{serial}/gate-challenge/confirm { challengeId, proof }
+      → verifyWorldIdProof + nullifier === holder.nullifier_hash
+      → scanTicketAtGate (freeze holder + status used)
+      → confirmGateChallenge
+
+Organizer sees success overlay; holder sees check-in animation.
+```
+
+### Cancel / retry
+
+- Organizer: **Cancel verification** in scanner overlay, or **Close** scanner → `POST /api/gate-challenges/{id}/cancel`
+- Holder: challenge cleared; wallet banner disappears; organizer can re-scan
+- If World ID fails: small **Retry World ID** link on pass page (auto-open again)
+
+### Anti-scam properties
+
+| Attack | Blocked by |
+|---|---|
+| Seller uses old QR after resale | `pass_generation` bump → "Pass revoked" |
+| Forged QR | HMAC signature without `GATE_QR_SECRET` |
+| Stale screenshot | Pass `exp` timestamp |
+| QR doesn't match on-chain holder | Mirror Node `getNftOwner` |
+| Seller approves from buyer's account remotely | World ID confirm only on pass page session; nullifier must match owner |
+
+---
+
+## 11. Key Hedera facts
 
 - **Token keys are permanent.** All keys (admin, supply, freeze, pause, metadata) must be set at creation time.
 - **NFT initial supply must be 0.** `setInitialSupply(0)` required for `NonFungibleUnique`.
 - **NFT metadata ≤100 bytes.** Short pointer URL only (e.g. `/api/tickets/{tokenId}/{serial}`).
 - **Royalty only fires on atomic swap.** NFT + HBAR in the same `TransferTransaction`. Plain NFT transfer triggers fallback fee (5 HBAR).
-- **Mirror Node lags ~5 seconds.** Wait before querying EVM address after account creation.
-- **Compliance layer:** Freeze is account-level, not per-serial — freezing a holder blocks transfer of *all* their tickets for that token. A frozen holder = entered/used = can't resell (rejected on-chain with `ACCOUNT_FROZEN_FOR_TOKEN`). Pause blocks the whole token (`TOKEN_IS_PAUSED`). Verified end-to-end on testnet.
+- **Mirror Node lags ~5 seconds.** Wait before querying after account creation or transfer.
+- **Compliance layer:** Freeze is account-level, not per-serial — freezing a holder blocks transfer of *all* their tickets for that token. A frozen holder = entered/used = can't resell (`ACCOUNT_FROZEN_FOR_TOKEN`). Pause blocks the whole token (`TOKEN_IS_PAUSED`).
 
 ---
 
-## 11. Environment variables
+## 12. Environment variables
 
 ```env
 OPERATOR_ID=0.0.xxxx
@@ -206,76 +284,98 @@ NEXT_PUBLIC_WORLD_APP_ID=app_xxx
 NEXT_PUBLIC_WORLD_ACTION=ticket-onboarding
 NEXT_PUBLIC_WORLD_ENVIRONMENT=production
 
+# Gate pass signing — REQUIRED for ticket pass QR
+GATE_QR_SECRET=long-random-string
+GATE_PASS_EXPIRY_MINUTES=15
+GATE_CHALLENGE_EXPIRY_MINUTES=3
+NEXT_PUBLIC_GATE_PASS_REFRESH_MS=60000
+
 APP_BASE_URL=http://localhost:3000
 ADMIN_SECRET=change-me
+ORGANIZER_INVITE_CODE=FP2123
 SECONDARY_PURCHASE_CAP=1
+
+LISTING_EXPIRY_HOURS=72
+BID_EXPIRY_HOURS=24
+HBAR_FEE_BUFFER=5
+
+ENS_PARENT_NAME=fairpass.eth
+NEXT_PUBLIC_ENS_PARENT_NAME=fairpass.eth
+ENS_CHAIN_ID=11155111
+ENS_RPC_URL=https://...
+ENS_OPERATOR_KEY=0x...
 ```
 
 For phone demos use `production`. For local dev use `staging` + World ID Simulator.
 
+**Gate camera:** run `npm run dev:https` — Chrome blocks camera on plain HTTP.
+
 ---
 
-## 12. Getting started
+## 13. Getting started
 
 ```bash
-cd ~/Documents/Project/fake-repo
 npm install
 cp .env.example .env
-# fill in .env
+# fill in .env — GATE_QR_SECRET is required for gate
 
-npm run dev
-# → http://localhost:3000
+npm run dev          # http://localhost:3000
+npm run dev:https    # https://0.0.0.0:3000 — gate camera on phone
 ```
 
-**Demo path (two users):**
-1. User A → `/onboard` → Organizer → `/organizer` → create collection (face value e.g. 50 HBAR)
+**Demo path (gate check-in):**
+1. User A → `/onboard` → Organizer → `/organizer` → create collection
 2. User B → `/onboard` → Purchaser → `/` → Buy
-3. User B → `/wallet` → enter User C account ID + resale price → Resell → User C scans World ID
+3. User B → `/tickets/{tokenId}/{serial}` → keep ticket pass open
+4. User A → `/events/{tokenId}` → Scan ticket QR
+5. User B's World App opens automatically → confirm → checked in
 
-**CLI alternative** (all scripts require the app to have run at least once so the operator is seeded in the DB):
+**Demo path (resale + gate):**
+1. User B resells to User C via `/wallet` listings
+2. User B's old QR fails at gate; User C's fresh QR works
+
+**CLI alternative:**
 ```bash
-node scripts/01-check-balance.js                          # verify .env + connectivity
-
-node scripts/02-create-token.js 100 50 "World Cup Ticket" WCT  # writes state.json + DB
-
-node scripts/03-create-account.js                         # dev-only buyer (skips World ID); writes buyer → state.json
-
-node scripts/05-primary-sale.js                           # reads tokenId + buyer from state.json
-
-node scripts/06-resale.js 1 75 0.0.seller 0.0.buyer       # serial priceHbar sellerAccountId buyerAccountId
-
-node scripts/promote-organizer.js 0.0.xxxx                # elevate any DB account to organizer
-
-node scripts/reset-db.js                                  # wipe DB; restart npm run dev to re-seed
+node scripts/01-check-balance.js
+node scripts/02-create-token.js 100 50 "World Cup Ticket" WCT
+node scripts/03-create-account.js
+node scripts/05-primary-sale.js
+node scripts/06-resale.js 1 75 0.0.seller 0.0.buyer
+node scripts/07-scan-gate.js 1                          # bypasses World ID challenge
+node scripts/promote-organizer.js 0.0.xxxx
+node scripts/reset-db.js
 ```
 
 ---
 
-## 13. Status & next steps
+## 14. Status & next steps
 
 **Done**
-- [x] Hedera client, state helpers, SQLite schema (users, tokens, tickets, ownership)
+- [x] Hedera client, state helpers, SQLite schema (users, tokens, tickets, ownership, listings)
 - [x] World ID onboarding + login + logout
 - [x] Roles: organizer / purchaser / reseller
 - [x] Token creation with 10% royalty + organizer face value
 - [x] Mint-on-buy primary sales at face value
-- [x] Atomic resale with on-chain royalty + World ID on buyer + secondary cap
-- [x] Marketplace, wallet, organizer UI
-- [x] CLI scripts 01–03, 05–06, promote-organizer, reset-db
+- [x] Resale listings marketplace + bids + World ID on buyer + per-event secondary cap
+- [x] ENS subdomain on onboard
+- [x] Marketplace, wallet, organizer, events UI
+- [x] **Gate security:** signed QR + pass_generation + Mirror Node + World ID challenge/confirm
+- [x] Organizer gate scanner (HTTPS), cancel verification, holder auto World ID
+- [x] CLI scripts 01–03, 05–09, promote-organizer, reset-db, setup-dev-https
 
 **Up next**
-1. Public resale listings marketplace (seller lists, buyer browses — no manual account ID entry)
-2. HCS audit log — every ticket event on a Consensus Service topic (No-Solidity prize)
-3. Gate scan + ENS — QR at venue, ENS subdomain as ticket identity
-4. Tie World ID proof nullifier to buyer account ID on resale (currently only checks secondary cap)
+1. HCS audit log — every ticket event on a Consensus Service topic (No-Solidity prize)
+2. Push notification when gate challenge created (optional — banner + auto-open covers MVP)
+3. USDC payment option
 
 ---
 
-## 14. Security
+## 15. Security
 
 - **Testnet only.** Never use mainnet keys in this codebase.
-- **Never commit `.env`.** Operator key, World ID signing key, admin secret stay server-side.
+- **Never commit `.env`.** Operator key, World ID signing key, admin secret, `GATE_QR_SECRET` stay server-side.
 - **`data/users.db` is gitignored.** Custodial private keys for all users. Do not commit.
 - **`state.json` is gitignored.** Token supply/admin keys for CLI. Losing it means you cannot mint more for that token.
-- **`WORLD_RP_SIGNING_KEY` is server-only.** Never expose via `NEXT_PUBLIC_*`.
+- **`WORLD_RP_SIGNING_KEY` and `GATE_QR_SECRET` are server-only.** Never expose via `NEXT_PUBLIC_*`.
+- Gate World ID confirm is scoped to the **ticket pass page** — do not add global wallet confirm (remote approval risk).
 - For phone testing, add LAN IP to `allowedDevOrigins` in `next.config.js`.

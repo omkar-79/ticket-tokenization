@@ -107,3 +107,19 @@ body::before {
     background: rgb(255 255 255 / 0.06);
   }
 }
+
+/* Gate QR scanner — single camera preview only */
+.gate-qr-scanner video {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+}
+
+.gate-qr-scanner video ~ video {
+  display: none !important;
+}
+
+.gate-qr-scanner img {
+  display: none !important;
+}

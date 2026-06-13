@@ -11,6 +11,15 @@ export async function getHbarBalance(accountId) {
   return tinybars / 1e8;
 }
 
+export async function getNftOwner(tokenId, serial) {
+  const res = await fetch(`${MIRROR_BASE}/tokens/${tokenId}/nfts/${serial}`);
+  if (!res.ok) {
+    return null;
+  }
+  const data = await res.json();
+  return data.account_id ?? null;
+}
+
 export async function softCheckBidderBalance(bidderAccountId, priceHbar) {
   const balance = await getHbarBalance(bidderAccountId);
   if (balance === null) {

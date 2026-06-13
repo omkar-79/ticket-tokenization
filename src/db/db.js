@@ -33,6 +33,31 @@ function runMigrations(database) {
   if (ticketCols.length > 0 && !ticketCols.find((c) => c.name === "ens_name")) {
     database.exec("ALTER TABLE tickets ADD COLUMN ens_name TEXT");
   }
+  if (ticketCols.length > 0 && !ticketCols.find((c) => c.name === "pass_generation")) {
+    database.exec("ALTER TABLE tickets ADD COLUMN pass_generation INTEGER NOT NULL DEFAULT 0");
+    database.exec(`
+      UPDATE tickets SET pass_generation = (
+        SELECT COUNT(*) FROM ownership o
+        WHERE o.token_id = tickets.token_id AND o.serial = tickets.serial
+      )
+    `);
+  }
+
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS gate_challenges (
+      id                    TEXT PRIMARY KEY,
+      token_id              TEXT NOT NULL,
+      serial                INTEGER NOT NULL,
+      owner_account_id      TEXT NOT NULL,
+      organizer_account_id  TEXT NOT NULL,
+      pass_generation       INTEGER NOT NULL,
+      status                TEXT NOT NULL DEFAULT 'pending',
+      expires_at            TEXT NOT NULL,
+      created_at            TEXT DEFAULT (datetime('now')),
+      confirmed_at          TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_gate_challenges_ticket ON gate_challenges(token_id, serial, status);
+  `);
 
   const tokenCols = database.prepare("PRAGMA table_info(tokens)").all();
   if (tokenCols.length > 0 && !tokenCols.find((c) => c.name === "primary_price_hbar")) {

@@ -66,6 +66,22 @@ export function listAvailablePrimary(tokenId) {
     .all(tokenId);
 }
 
+export function getPassGeneration(tokenId, serial) {
+  const row = getDb()
+    .prepare("SELECT pass_generation FROM tickets WHERE token_id = ? AND serial = ?")
+    .get(tokenId, serial);
+  return row?.pass_generation ?? 0;
+}
+
+export function bumpPassGeneration(tokenId, serial) {
+  getDb()
+    .prepare(
+      "UPDATE tickets SET pass_generation = pass_generation + 1 WHERE token_id = ? AND serial = ?"
+    )
+    .run(tokenId, serial);
+  return getPassGeneration(tokenId, serial);
+}
+
 export function recordOwnership({
   tokenId,
   serial,
@@ -83,6 +99,7 @@ export function recordOwnership({
       ) VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
     .run(tokenId, serial, ownerAccountId, ownerNullifier, acquisition, priceHbar, txId);
+  bumpPassGeneration(tokenId, serial);
 }
 
 export function getCurrentOwner(tokenId, serial) {

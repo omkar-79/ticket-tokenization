@@ -1,23 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import Card from "../ui/Card.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
 import Badge from "../ui/Badge.jsx";
 import Alert from "../ui/Alert.jsx";
 import GateQrScanner from "./GateQrScanner.jsx";
-import { apiPost } from "../../lib/api.js";
+import { apiGet, apiPost } from "../../lib/api.js";
 import { useToast } from "../ui/ToastHost.jsx";
 import { parseGateScanPayload } from "../../lib/gate.js";
-import { formatCameraError, isCameraBlockedByInsecureContext, requestCameraAccess } from "../../lib/camera.js";
+import { isCameraBlockedByInsecureContext } from "../../lib/camera.js";
 
 export default function EventCompliancePanel({ tokenId, event, accountId, onUpdated }) {
   const { toast } = useToast();
   const [scanning, setScanning] = useState(false);
-  const [cameraDeviceId, setCameraDeviceId] = useState(null);
-  const [cameraReady, setCameraReady] = useState(false);
-  const [openingCamera, setOpeningCamera] = useState(false);
+  const [scanSession, setScanSession] = useState(0);
   const [insecureContext, setInsecureContext] = useState(false);
 
   useEffect(() => {
@@ -27,6 +26,119 @@ export default function EventCompliancePanel({ tokenId, event, accountId, onUpda
   const [resetSerial, setResetSerial] = useState("1");
   const [loading, setLoading] = useState(null);
   const [error, setError] = useState(null);
+  const [scanStatus, setScanStatus] = useState(null);
+  const [activeChallengeId, setActiveChallengeId] = useState(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const waitCancelledRef = useRef(false);
+
+  async function cancelVerification() {
+    if (!activeChallengeId || cancelLoading) return;
+    setCancelLoading(true);
+    waitCancelledRef.current = true;
+    try {
+      await apiPost(
+        `/api/gate-challenges/${encodeURIComponent(activeChallengeId)}/cancel`,
+        {},
+        accountId
+      );
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCancelLoading(false);
+    }
+  }
+
+  async function waitForChallenge(challengeId) {
+    waitCancelledRef.current = false;
+    setActiveChallengeId(challengeId);
+    const deadline = Date.now() + 180000;
+
+    try {
+      while (Date.now() < deadline) {
+        if (waitCancelledRef.current) {
+          return { cancelled: true };
+        }
+
+        await new Promise((r) => setTimeout(r, 2000));
+
+        if (waitCancelledRef.current) {
+          return { cancelled: true };
+        }
+
+        const status = await apiGet(
+          `/api/gate-challenges/${encodeURIComponent(challengeId)}`,
+          accountId
+        );
+        if (status.status === "confirmed") {
+          return { confirmed: true, ...status };
+        }
+        if (status.status === "cancelled") {
+          return waitCancelledRef.current
+            ? { cancelled: true }
+            : { cancelled: true, byHolder: false };
+        }
+        if (status.status === "expired") {
+          throw new Error(
+            "Holder did not confirm in time — ask them to open their ticket pass and try again"
+          );
+        }
+      }
+      throw new Error("Timed out waiting for holder to confirm with World ID");
+    } finally {
+      setActiveChallengeId(null);
+    }
+  }
+
+  async function handleQrScan(decodedText) {
+    const parsed = parseGateScanPayload(decodedText);
+    if (!parsed) {
+      setError("That QR code is not a valid ticket. Ask the fan to show their ticket pass.");
+      throw new Error("Invalid QR");
+    }
+    if (parsed.tokenId !== tokenId) {
+      setError("This ticket is for a different event.");
+      throw new Error("Wrong event");
+    }
+    if (!parsed.pass) {
+      setError("Outdated QR — ask the fan to refresh their ticket pass (resale invalidates old codes).");
+      throw new Error("Legacy QR");
+    }
+
+    setLoading("scan");
+    setScanStatus("Verifying signed pass & on-chain owner…");
+    setError(null);
+    try {
+      const init = await apiPost(
+        `/api/tokens/${encodeURIComponent(tokenId)}/gate-scan/initiate`,
+        { pass: parsed.pass },
+        accountId
+      );
+
+      setScanStatus("Waiting for holder to confirm with World ID on their phone…");
+      const waitResult = await waitForChallenge(init.challengeId);
+
+      if (waitResult.cancelled) {
+        setScanStatus(null);
+        return null;
+      }
+
+      setLastScan({ serial: parsed.serial, at: new Date() });
+      await onUpdated?.();
+      setScanStatus(null);
+      setScanning(false);
+      return {
+        serial: parsed.serial,
+        eventName: event?.name ?? null,
+        message: init.message,
+      };
+    } catch (e) {
+      setError(e.message);
+      setScanStatus(null);
+      throw e;
+    } finally {
+      setLoading(null);
+    }
+  }
 
   async function run(action, fn) {
     setLoading(action);
@@ -41,34 +153,6 @@ export default function EventCompliancePanel({ tokenId, event, accountId, onUpda
       throw e;
     } finally {
       setLoading(null);
-    }
-  }
-
-  async function grantEntry(serial) {
-    return run("scan", () =>
-      apiPost(`/api/tokens/${encodeURIComponent(tokenId)}/gate-scan`, { serial }, accountId)
-    );
-  }
-
-  async function handleQrScan(decodedText) {
-    const parsed = parseGateScanPayload(decodedText);
-    if (!parsed) {
-      setScanning(false);
-      setError("That QR code is not a valid ticket. Ask the fan to show their ticket pass.");
-      return;
-    }
-    if (parsed.tokenId !== tokenId) {
-      setScanning(false);
-      setError("This ticket is for a different event.");
-      return;
-    }
-    try {
-      await grantEntry(parsed.serial);
-      setLastScan({ serial: parsed.serial, at: new Date() });
-    } catch {
-      /* error shown via Alert */
-    } finally {
-      setScanning(false);
     }
   }
 
@@ -113,8 +197,13 @@ export default function EventCompliancePanel({ tokenId, event, accountId, onUpda
       )}
 
       {lastScan && (
-        <div className="mb-4 text-sm text-success border border-success/30 rounded-lg px-4 py-3">
-          Ticket #{lastScan.serial} checked in at {lastScan.at.toLocaleTimeString()}.
+        <div className="mb-4 text-sm text-success border border-success/30 rounded-lg px-4 py-3 flex items-center gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success/10 text-success">
+            ✓
+          </span>
+          <span>
+            Access granted — ticket #{lastScan.serial} checked in at {lastScan.at.toLocaleTimeString()}.
+          </span>
         </div>
       )}
 
@@ -122,8 +211,9 @@ export default function EventCompliancePanel({ tokenId, event, accountId, onUpda
         <Card className="lg:col-span-2 border-accent/25 bg-accent/[0.03]">
           <h3 className="text-lg font-medium mb-2">Scan tickets at the gate</h3>
           <p className="text-sm text-muted mb-6 leading-relaxed max-w-xl">
-            Ask each fan to open <strong className="text-text">My Tickets</strong> and show their QR
-            code. Tap the button below and point your camera at it — entry is recorded automatically.
+            Ask each fan to open their <strong className="text-text">ticket pass</strong> (full-screen QR) and
+            keep it open. After you scan, they must tap <strong className="text-text">Verify World ID</strong> on
+            that pass page — entry is not instant.
           </p>
           {insecureContext && (
             <div className="mb-4 text-sm text-pending border border-pending/30 rounded-lg px-4 py-3 leading-relaxed max-w-xl">
@@ -135,23 +225,15 @@ export default function EventCompliancePanel({ tokenId, event, accountId, onUpda
             </div>
           )}
           <Button
-            onClick={async () => {
+            onClick={() => {
               setError(null);
-              setOpeningCamera(true);
-              try {
-                const { deviceId } = await requestCameraAccess();
-                setCameraDeviceId(deviceId);
-                setCameraReady(true);
+              flushSync(() => {
+                setScanSession((n) => n + 1);
                 setScanning(true);
-              } catch (e) {
-                setCameraDeviceId(null);
-                setCameraReady(false);
-                setError(formatCameraError(e));
-              } finally {
-                setOpeningCamera(false);
-              }
+              });
             }}
-            loading={openingCamera || loading === "scan"}
+            loading={loading === "scan"}
+            disabled={insecureContext}
             className="text-base px-8 py-3"
           >
             Scan ticket QR
@@ -206,13 +288,30 @@ export default function EventCompliancePanel({ tokenId, event, accountId, onUpda
 
       {scanning && (
         <GateQrScanner
-          cameraDeviceId={cameraDeviceId}
-          cameraReady={cameraReady}
-          onClose={() => {
+          key={scanSession}
+          autoStart
+          eventName={event?.name}
+          scanStatus={scanStatus}
+          onClose={async () => {
+            waitCancelledRef.current = true;
+            if (activeChallengeId) {
+              try {
+                await apiPost(
+                  `/api/gate-challenges/${encodeURIComponent(activeChallengeId)}/cancel`,
+                  {},
+                  accountId
+                );
+              } catch {
+                /* ignore — closing scanner still resets UI */
+              }
+            }
+            setActiveChallengeId(null);
             setScanning(false);
-            setCameraDeviceId(null);
-            setCameraReady(false);
+            setScanStatus(null);
           }}
+          waitingForHolder={Boolean(activeChallengeId && scanStatus?.includes("World ID"))}
+          onCancelVerification={cancelVerification}
+          cancelLoading={cancelLoading}
           onScan={handleQrScan}
         />
       )}

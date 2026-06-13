@@ -1,17 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import PageTransition from "../../../components/layout/PageTransition.jsx";
 import Card from "../../../components/ui/Card.jsx";
 import Badge from "../../../components/ui/Badge.jsx";
 import { CardSkeleton } from "../../../components/ui/Skeleton.jsx";
 import OwnershipHistory from "../../../components/tickets/OwnershipHistory.jsx";
 import TicketPassQr from "../../../components/tickets/TicketPassQr.jsx";
+import GateEntryConfirm from "../../../components/tickets/GateEntryConfirm.jsx";
+import TicketCheckedInOverlay from "../../../components/tickets/TicketCheckedInOverlay.jsx";
+import { useAccount } from "../../../hooks/useAccount.js";
+import { useTicketCheckInWatch } from "../../../hooks/useTicketCheckInWatch.js";
 import { fadeUp, fadeUpTransition } from "../../../lib/motion.js";
 
 export default function TicketDetailPage({ params }) {
+  const { accountId } = useAccount();
   const [resolved, setResolved] = useState(null);
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,18 +26,41 @@ export default function TicketDetailPage({ params }) {
     params.then(setResolved);
   }, [params]);
 
-  useEffect(() => {
+  const loadTicket = useCallback(async () => {
     if (!resolved) return;
     const { tokenId, serial } = resolved;
-    fetch(`/api/tickets/${encodeURIComponent(tokenId)}/${serial}`)
-      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
-      .then(({ ok, d }) => {
-        if (!ok) throw new Error(d.error);
-        setTicket(d);
-      })
+    const res = await fetch(`/api/tickets/${encodeURIComponent(tokenId)}/${serial}`);
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error);
+    setTicket(d);
+  }, [resolved]);
+
+  useEffect(() => {
+    if (!resolved) return;
+    setLoading(true);
+    loadTicket()
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [resolved]);
+  }, [resolved, loadTicket]);
+
+  const onCheckedIn = useCallback((data) => {
+    setTicket((prev) => (prev ? { ...prev, ...data, status: "used" } : data));
+  }, []);
+
+  const { celebration, dismissCelebration } = useTicketCheckInWatch(
+    resolved?.tokenId,
+    resolved?.serial != null ? Number(resolved.serial) : null,
+    {
+      enabled: Boolean(resolved && ticket && ticket.status !== "used"),
+      onCheckedIn,
+    }
+  );
+
+  useEffect(() => {
+    if (!celebration) return undefined;
+    const timer = setTimeout(() => dismissCelebration(), 3500);
+    return () => clearTimeout(timer);
+  }, [celebration, dismissCelebration]);
 
   if (loading) {
     return (
@@ -51,11 +79,29 @@ export default function TicketDetailPage({ params }) {
     );
   }
 
+  const isOwner = accountId && ticket.ownershipHistory?.length
+    ? ticket.ownershipHistory[ticket.ownershipHistory.length - 1]?.owner_account_id === accountId
+    : false;
+
   return (
     <PageTransition>
       <motion.article {...fadeUp} transition={fadeUpTransition}>
-        <Card className="max-w-md mx-auto" variant="accent">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted mb-6">Ticket pass</p>
+        {isOwner && ticket.status !== "used" && accountId && (
+          <GateEntryConfirm
+            tokenId={ticket.tokenId}
+            serial={ticket.serial}
+            accountId={accountId}
+            onConfirmed={loadTicket}
+          />
+        )}
+
+        <Card className="max-w-md mx-auto" variant={ticket.status === "used" ? "default" : "accent"}>
+          <div className="flex items-start justify-between gap-3 mb-6">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted">Ticket pass</p>
+            {ticket.status === "used" && (
+              <Badge variant="success">Checked in</Badge>
+            )}
+          </div>
 
           <p className="text-6xl font-medium tracking-tight text-accent mb-2">
             #{ticket.serial}
@@ -73,6 +119,7 @@ export default function TicketDetailPage({ params }) {
             <TicketPassQr
               tokenId={ticket.tokenId}
               serial={ticket.serial}
+              accountId={isOwner ? accountId : null}
               ensName={ticket.ensName}
               used={ticket.status === "used"}
               size={180}
@@ -82,8 +129,8 @@ export default function TicketDetailPage({ params }) {
           <div className="space-y-2 text-sm border-t border-border pt-6">
             <Row label="Token" value={ticket.tokenId} mono />
             <Row label="Status" value={
-              <Badge variant={ticket.status === "used" ? "pending" : "default"}>
-                {ticket.status === "used" ? "Used at gate" : ticket.status.replace(/_/g, " ")}
+              <Badge variant={ticket.status === "used" ? "success" : "default"}>
+                {ticket.status === "used" ? "Checked in" : ticket.status.replace(/_/g, " ")}
               </Badge>
             } />
             {ticket.metadataUri && (
@@ -108,6 +155,18 @@ export default function TicketDetailPage({ params }) {
           </Link>
         </Card>
       </motion.article>
+
+      <AnimatePresence>
+        {celebration && (
+          <TicketCheckedInOverlay
+            serial={celebration.serial}
+            eventName={celebration.eventName}
+            variant="holder"
+            fullscreen
+            onDone={dismissCelebration}
+          />
+        )}
+      </AnimatePresence>
     </PageTransition>
   );
 }

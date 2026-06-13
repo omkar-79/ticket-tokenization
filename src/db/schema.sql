@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS tokens (
   max_supply           INTEGER NOT NULL,
   primary_price_hbar   REAL NOT NULL DEFAULT 50,
   minted_count         INTEGER NOT NULL DEFAULT 0,
+  pass_generation      INTEGER NOT NULL DEFAULT 0,
   royalty_numerator    INTEGER NOT NULL DEFAULT 10,
   royalty_denominator  INTEGER NOT NULL DEFAULT 100,
   keys_json            TEXT NOT NULL,
@@ -83,3 +84,18 @@ CREATE INDEX IF NOT EXISTS idx_bids_bidder ON bids(bidder_account_id, status);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_listings_active_ticket
   ON listings(token_id, serial)
   WHERE status IN ('open', 'pending_settlement');
+
+CREATE TABLE IF NOT EXISTS gate_challenges (
+  id                    TEXT PRIMARY KEY,
+  token_id              TEXT NOT NULL,
+  serial                INTEGER NOT NULL,
+  owner_account_id      TEXT NOT NULL,
+  organizer_account_id  TEXT NOT NULL,
+  pass_generation       INTEGER NOT NULL,
+  status                TEXT NOT NULL DEFAULT 'pending',
+  expires_at            TEXT NOT NULL,
+  created_at            TEXT DEFAULT (datetime('now')),
+  confirmed_at          TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_gate_challenges_ticket ON gate_challenges(token_id, serial, status);

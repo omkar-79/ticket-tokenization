@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -17,6 +17,8 @@ import SegmentedControl from "../components/ui/SegmentedControl.jsx";
 import Alert from "../components/ui/Alert.jsx";
 import { CardSkeleton } from "../components/ui/Skeleton.jsx";
 import { useWallet } from "../hooks/useWallet.js";
+import { useWalletCheckInWatch } from "../hooks/useTicketCheckInWatch.js";
+import TicketCheckedInOverlay from "../components/tickets/TicketCheckedInOverlay.jsx";
 import { useNotifications } from "../hooks/useNotifications.js";
 import { useAccount } from "../hooks/useAccount.js";
 import { useToast } from "../components/ui/ToastHost.jsx";
@@ -70,6 +72,23 @@ export default function WalletPage() {
 
   const acceptedBids = myBids.filter((b) => b.status === "accepted");
   const pendingBids = myBids.filter((b) => b.status === "pending");
+  const ownedTickets = wallet?.tickets ?? [];
+
+  const onTicketCheckedIn = useCallback(() => {
+    refresh().catch(() => {});
+  }, [refresh]);
+
+  const { celebration: checkInCelebration, dismissCelebration: dismissCheckInCelebration } =
+    useWalletCheckInWatch(ownedTickets, {
+      enabled: tab === "tickets" && ownedTickets.some((t) => t.status !== "used"),
+      onCheckedIn: onTicketCheckedIn,
+    });
+
+  useEffect(() => {
+    if (!checkInCelebration) return undefined;
+    const timer = setTimeout(() => dismissCheckInCelebration(), 3500);
+    return () => clearTimeout(timer);
+  }, [checkInCelebration, dismissCheckInCelebration]);
 
   function ticketHasActiveListing(ticket) {
     return sellerListings.some(
@@ -247,6 +266,7 @@ export default function WalletPage() {
             {tab === "tickets" && (
               <TicketsPanel
                 tickets={wallet?.tickets}
+                accountId={accountId}
                 sellerListings={sellerListings}
                 askPrices={askPrices}
                 minBids={minBids}
@@ -300,11 +320,23 @@ export default function WalletPage() {
           }}
         />
       )}
+
+      <AnimatePresence>
+        {checkInCelebration && (
+          <TicketCheckedInOverlay
+            serial={checkInCelebration.serial}
+            eventName={checkInCelebration.eventName}
+            variant="holder"
+            fullscreen
+            onDone={dismissCheckInCelebration}
+          />
+        )}
+      </AnimatePresence>
     </PageTransition>
   );
 }
 
-function TicketsPanel({ tickets, askPrices, minBids, onAskChange, onMinBidChange, onList, actionLoading, ticketHasActiveListing }) {
+function TicketsPanel({ tickets, accountId, askPrices, minBids, onAskChange, onMinBidChange, onList, actionLoading, ticketHasActiveListing }) {
   if (!tickets?.length) {
     return (
       <p className="text-muted text-sm">
@@ -324,6 +356,7 @@ function TicketsPanel({ tickets, askPrices, minBids, onAskChange, onMinBidChange
           <TicketCard
             key={key}
             ticket={t}
+            accountId={accountId}
             askPrice={askPrices[key]}
             minBid={minBids[key]}
             onAskChange={(v) => onAskChange(key, v)}

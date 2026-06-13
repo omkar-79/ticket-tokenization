@@ -11,21 +11,17 @@ import Button from "../../../components/ui/Button.jsx";
 import Alert from "../../../components/ui/Alert.jsx";
 import { CardSkeleton } from "../../../components/ui/Skeleton.jsx";
 import { useAccount } from "../../../hooks/useAccount.js";
-import { useToast } from "../../../components/ui/ToastHost.jsx";
-import { apiPost } from "../../../lib/api.js";
 import { eventDetailUrl } from "../../../lib/routes.js";
 
-/** Fallback when an organizer opens a ticket QR with the phone camera app. */
+/** Fallback when an organizer opens a legacy ticket URL from the phone camera app. */
 export default function GateScanPage({ params }) {
   const router = useRouter();
-  const { toast } = useToast();
   const { accountId, isOrganizer, loading: accountLoading } = useAccount();
   const [tokenId, setTokenId] = useState(null);
   const [serial, setSerial] = useState(null);
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [scanLoading, setScanLoading] = useState(false);
 
   useEffect(() => {
     params.then((p) => {
@@ -47,27 +43,6 @@ export default function GateScanPage({ params }) {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [tokenId, serial]);
-
-  async function grantEntry() {
-    if (!accountId || !tokenId || serial == null) return;
-    setScanLoading(true);
-    setError(null);
-    try {
-      const data = await apiPost(
-        `/api/tokens/${encodeURIComponent(tokenId)}/gate-scan`,
-        { serial },
-        accountId
-      );
-      toast(data.message ?? "Entry granted", "success");
-      const res = await fetch(`/api/tickets/${encodeURIComponent(tokenId)}/${serial}`);
-      const d = await res.json();
-      if (res.ok) setTicket(d);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setScanLoading(false);
-    }
-  }
 
   if (accountLoading || loading) {
     return (
@@ -109,14 +84,8 @@ export default function GateScanPage({ params }) {
     <PageTransition>
       <PageHeader
         title="Ticket check-in"
-        description="Tip: use Scan ticket QR on your event page next time — it's faster."
+        description="Gate entry now requires scanning the fan's signed QR from their ticket pass."
       />
-
-      {error && (
-        <div className="mb-6 max-w-md mx-auto">
-          <Alert shakeKey={error}>{error}</Alert>
-        </div>
-      )}
 
       <Card className="max-w-md mx-auto space-y-4">
         <div className="flex justify-between items-start gap-3">
@@ -125,16 +94,25 @@ export default function GateScanPage({ params }) {
             <p className="text-sm mt-2">{ticket?.event ?? "Ticket"}</p>
           </div>
           <Badge variant={isUsed ? "pending" : "accent"}>
-            {isUsed ? "Already checked in" : "Ready"}
+            {isUsed ? "Already checked in" : "Needs QR scan"}
           </Badge>
         </div>
 
-        {!isUsed ? (
-          <Button onClick={grantEntry} loading={scanLoading} className="w-full">
-            Check in this ticket
+        <p className="text-sm text-muted leading-relaxed">
+          Direct check-in from this link is disabled. Ask the fan to open their{" "}
+          <strong className="text-text">ticket pass</strong>, then use{" "}
+          <strong className="text-text">Scan ticket QR</strong> on your event page.
+          After you scan, they confirm with World ID on their phone.
+        </p>
+
+        {!isUsed && (
+          <Button onClick={() => router.push(eventDetailUrl(tokenId))} className="w-full">
+            Open event scanner
           </Button>
-        ) : (
-          <p className="text-sm text-muted">This ticket was already scanned.</p>
+        )}
+
+        {isUsed && (
+          <p className="text-sm text-muted">This ticket was already scanned at the gate.</p>
         )}
 
         <Button variant="ghost" onClick={() => router.push(eventDetailUrl(tokenId))} className="w-full">
