@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import Button from "../ui/Button.jsx";
@@ -8,18 +9,41 @@ import Badge from "../ui/Badge.jsx";
 import { fadeUp, fadeUpTransition } from "../../lib/motion.js";
 import { marketplaceCollectionUrl } from "../../lib/routes.js";
 
+function formatSerials(tickets) {
+  const serials = (tickets ?? []).map((t) => t.serial);
+  if (serials.length <= 3) return serials.map((s) => `#${s}`).join(", ");
+  return `#${serials[0]}–#${serials[serials.length - 1]}`;
+}
+
 export default function CollectionCard({
   item,
   accountId,
   loading,
+  purchasingQuantity = 1,
   onBuy,
   buySuccess,
   authPromptId,
   embedded = false,
 }) {
+  const maxQty = Math.max(1, item.remaining ?? 1);
+  const [quantity, setQuantity] = useState(1);
   const pct = item.maxSupply > 0 ? (item.mintedCount / item.maxSupply) * 100 : 0;
   const showAuthPrompt = authPromptId === item.tokenId;
   const isPaused = Boolean(item.paused);
+  const isPurchasing = embedded ? loading : loading === item.tokenId;
+  const totalHbar = item.faceValueHbar * quantity;
+
+  useEffect(() => {
+    setQuantity((prev) => Math.min(Math.max(1, prev), maxQty));
+  }, [maxQty]);
+
+  function handleBuy() {
+    if (embedded) {
+      onBuy(quantity);
+    } else {
+      onBuy(item.tokenId, quantity);
+    }
+  }
 
   return (
     <motion.li {...fadeUp} transition={fadeUpTransition}>
@@ -73,17 +97,70 @@ export default function CollectionCard({
               {item.faceValueHbar} <span className="text-sm font-normal text-muted">HBAR</span>
             </p>
           </div>
+
           {!item.soldOut && !isPaused && (
-            <Button
-              className="w-full sm:w-auto shrink-0"
-              onClick={() => (embedded ? onBuy() : onBuy(item.tokenId))}
-              loading={embedded ? loading : loading === item.tokenId}
-              disabled={!!loading}
-            >
-              Buy ticket
-            </Button>
+            <div className="flex flex-col gap-3 w-full sm:w-auto sm:min-w-[220px]">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-muted uppercase tracking-widest">Quantity</span>
+                <div className="inline-flex items-center rounded-[var(--radius-button)] border border-border overflow-hidden">
+                  <button
+                    type="button"
+                    aria-label="Decrease quantity"
+                    disabled={isPurchasing || quantity <= 1}
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    className="min-h-11 min-w-11 text-lg text-muted hover:text-text hover:bg-white/5 disabled:opacity-40 transition-colors touch-manipulation"
+                  >
+                    −
+                  </button>
+                  <span className="min-w-10 text-center text-sm font-semibold tabular-nums text-text px-2">
+                    {quantity}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Increase quantity"
+                    disabled={isPurchasing || quantity >= maxQty}
+                    onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))}
+                    className="min-h-11 min-w-11 text-lg text-muted hover:text-text hover:bg-white/5 disabled:opacity-40 transition-colors touch-manipulation"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {quantity > 1 && (
+                <p className="text-xs text-muted text-right tabular-nums">
+                  Total {totalHbar} HBAR
+                </p>
+              )}
+
+              <Button
+                className="w-full shrink-0"
+                onClick={handleBuy}
+                loading={isPurchasing}
+                loadingLabel={
+                  purchasingQuantity > 1
+                    ? `Purchasing ${purchasingQuantity} tickets…`
+                    : "Purchasing ticket…"
+                }
+                disabled={!!loading && !isPurchasing}
+              >
+                {quantity > 1 ? `Buy ${quantity} tickets` : "Buy ticket"}
+              </Button>
+            </div>
           )}
         </div>
+
+        {isPurchasing && (
+          <motion.p
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-sm text-accent border border-accent/20 bg-accent/5 rounded-xl px-4 py-3"
+          >
+            {purchasingQuantity > 1
+              ? `Minting ${purchasingQuantity} tickets on Hedera — this may take a moment.`
+              : "Minting your ticket on Hedera — this may take a moment."}
+          </motion.p>
+        )}
 
         {isPaused && (
           <p className="text-xs text-pending border-t border-border pt-3">
@@ -111,9 +188,15 @@ export default function CollectionCard({
             animate={{ opacity: 1, height: "auto" }}
             className="border-t border-success/20 pt-4 text-sm text-success"
           >
-            Ticket #{buySuccess.serial} minted.{" "}
-            <Link href={`/wallet`} className="underline hover:text-success/80">
-              View ticket
+            {(buySuccess.quantity ?? 1) > 1 ? (
+              <>
+                {buySuccess.quantity} tickets minted ({formatSerials(buySuccess.tickets)}).{" "}
+              </>
+            ) : (
+              <>Ticket #{buySuccess.serial} minted. </>
+            )}
+            <Link href="/wallet" className="underline hover:text-success/80">
+              View tickets
             </Link>
             {buySuccess.hashscanUrl && (
               <>

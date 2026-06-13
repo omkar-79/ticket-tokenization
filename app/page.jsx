@@ -22,6 +22,7 @@ export default function MarketplacePage() {
   const { collections, loading, error, refresh } = useMarketplace();
   const { mutate, error: buyError } = useApiMutation();
   const [buyLoading, setBuyLoading] = useState(null);
+  const [purchasingQuantity, setPurchasingQuantity] = useState(1);
   const [buySuccess, setBuySuccess] = useState(null);
   const [authPromptId, setAuthPromptId] = useState(null);
   const { stagger } = useMotionSafe();
@@ -40,18 +41,26 @@ export default function MarketplacePage() {
     );
   }
 
-  async function buyTicket(tokenId) {
+  async function buyTicket(tokenId, quantity = 1) {
     if (!accountId) {
       setAuthPromptId(tokenId);
       return;
     }
     setAuthPromptId(null);
     setBuySuccess(null);
+    setPurchasingQuantity(quantity);
     setBuyLoading(tokenId);
     try {
       const data = await mutate(
-        () => apiPost(`/api/tokens/${tokenId}/buy`, { buyerAccountId: accountId }),
-        { successMessage: "Ticket purchased" }
+        () =>
+          apiPost(`/api/tokens/${tokenId}/buy`, {
+            buyerAccountId: accountId,
+            quantity,
+          }),
+        {
+          successMessage:
+            quantity > 1 ? `${quantity} tickets purchased` : "Ticket purchased",
+        }
       );
       setBuySuccess({ ...data, tokenId });
       await refresh();
@@ -59,6 +68,7 @@ export default function MarketplacePage() {
       /* error in hook */
     } finally {
       setBuyLoading(null);
+      setPurchasingQuantity(1);
     }
   }
 
@@ -107,7 +117,8 @@ export default function MarketplacePage() {
               key={item.tokenId}
               item={item}
               accountId={accountId}
-              loading={loading === item.tokenId}
+              loading={buyLoading}
+              purchasingQuantity={buyLoading === item.tokenId ? purchasingQuantity : 1}
               onBuy={buyTicket}
               buySuccess={buySuccess}
               authPromptId={authPromptId}

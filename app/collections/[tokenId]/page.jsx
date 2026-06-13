@@ -22,6 +22,7 @@ export default function CollectionPage({ params }) {
   const { collection, loading, error, refresh } = useCollection(tokenId);
   const { mutate, error: buyError } = useApiMutation();
   const [buyLoading, setBuyLoading] = useState(false);
+  const [purchasingQuantity, setPurchasingQuantity] = useState(1);
   const [buySuccess, setBuySuccess] = useState(null);
   const [authPromptId, setAuthPromptId] = useState(null);
 
@@ -35,7 +36,7 @@ export default function CollectionPage({ params }) {
     }
   }, [accountLoading, isOrganizer, router]);
 
-  async function buyTicket() {
+  async function buyTicket(quantity = 1) {
     if (!collection) return;
     if (!accountId) {
       setAuthPromptId(collection.tokenId);
@@ -43,11 +44,19 @@ export default function CollectionPage({ params }) {
     }
     setAuthPromptId(null);
     setBuySuccess(null);
+    setPurchasingQuantity(quantity);
     setBuyLoading(true);
     try {
       const data = await mutate(
-        () => apiPost(`/api/tokens/${collection.tokenId}/buy`, { buyerAccountId: accountId }),
-        { successMessage: "Ticket purchased" }
+        () =>
+          apiPost(`/api/tokens/${collection.tokenId}/buy`, {
+            buyerAccountId: accountId,
+            quantity,
+          }),
+        {
+          successMessage:
+            quantity > 1 ? `${quantity} tickets purchased` : "Ticket purchased",
+        }
       );
       setBuySuccess({ ...data, tokenId: collection.tokenId });
       await refresh();
@@ -55,6 +64,7 @@ export default function CollectionPage({ params }) {
       /* error in hook */
     } finally {
       setBuyLoading(false);
+      setPurchasingQuantity(1);
     }
   }
 
@@ -128,7 +138,8 @@ export default function CollectionPage({ params }) {
           <CollectionCard
             item={collection}
             accountId={accountId}
-            loading={buyLoading ? collection.tokenId : null}
+            loading={buyLoading}
+            purchasingQuantity={buyLoading ? purchasingQuantity : 1}
             onBuy={buyTicket}
             buySuccess={buySuccess}
             authPromptId={authPromptId}
