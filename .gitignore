@@ -1,0 +1,8 @@
+node_modules/
+.env
+state.json
+data/
+certificates/
+*.db
+.next/
+.DS_Store

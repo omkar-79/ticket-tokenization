@@ -1,0 +1,41 @@
+{
+  "name": "fake-repo",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "dev:https": "node scripts/setup-dev-https.js && next dev -H 0.0.0.0 --experimental-https --experimental-https-key certificates/dev-key.pem --experimental-https-cert certificates/dev-cert.pem",
+    "build": "next build",
+    "start": "next start",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vedantMahangade/fake-repo.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/vedantMahangade/fake-repo/issues"
+  },
+  "homepage": "https://github.com/vedantMahangade/fake-repo#readme",
+  "description": "",
+  "type": "module",
+  "dependencies": {
+    "@hashgraph/sdk": "^2.81.0",
+    "@tailwindcss/postcss": "^4.3.1",
+    "@worldcoin/idkit": "^4.1.8",
+    "better-sqlite3": "^12.10.0",
+    "dotenv": "^17.4.2",
+    "framer-motion": "^12.40.0",
+    "html5-qrcode": "^2.3.8",
+    "next": "^16.2.9",
+    "postcss": "^8.5.15",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-qr-code": "^2.2.0",
+    "tailwindcss": "^4.3.1",
+    "viem": "^2.52.2"
+  }
+}
