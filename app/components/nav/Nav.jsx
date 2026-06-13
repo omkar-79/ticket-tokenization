@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { clearStoredAccountId } from "../../lib/storage.js";
 import { useAccount } from "../../hooks/useAccount.js";
 import { useNotifications } from "../../hooks/useNotifications.js";
+import { formatAccountDisplay } from "../../lib/accountDisplay.js";
 import Badge from "../ui/Badge.jsx";
 import HbarBalanceMenu from "./HbarBalanceMenu.jsx";
 
@@ -20,7 +21,7 @@ const organizerLinks = [{ href: "/events", label: "My Events" }];
 export default function Nav() {
   const router = useRouter();
   const pathname = usePathname();
-  const { accountId, isSignedIn, isOrganizer, loading } = useAccount();
+  const { accountId, ensName, isSignedIn, isOrganizer, loading } = useAccount();
   const { actionCount, totalCount } = useNotifications();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -32,11 +33,8 @@ export default function Nav() {
 
   const navLinks = isOrganizer ? organizerLinks : purchaserLinks;
 
-  const shortId = accountId
-    ? accountId.length > 12
-      ? `${accountId.slice(0, 6)}…${accountId.slice(-4)}`
-      : accountId
-    : null;
+  const displayName = formatAccountDisplay(accountId, ensName, { short: true });
+  const fullDisplayName = formatAccountDisplay(accountId, ensName);
 
   const isActive = (href) => {
     if (href === "/events") return pathname === "/events" || pathname.startsWith("/events/");
@@ -90,7 +88,12 @@ export default function Nav() {
                 {isOrganizer && (
                   <span className="text-muted uppercase tracking-widest text-[10px]">Organizer</span>
                 )}
-                <span className="font-mono text-muted">{shortId}</span>
+                <span
+                  className="font-mono text-muted max-w-[160px] truncate"
+                  title={fullDisplayName ?? undefined}
+                >
+                  {displayName}
+                </span>
                 <button
                   type="button"
                   onClick={logout}
@@ -154,7 +157,7 @@ export default function Nav() {
               {isSignedIn && (
                 <>
                   <p className="text-[10px] uppercase tracking-widest text-muted">Account</p>
-                  <p className="font-mono text-sm break-all">{accountId}</p>
+                  <p className="font-mono text-sm break-all text-accent">{fullDisplayName}</p>
                   {isOrganizer && (
                     <p className="text-xs text-muted">Organizer</p>
                   )}

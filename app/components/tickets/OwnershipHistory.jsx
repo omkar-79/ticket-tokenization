@@ -1,3 +1,5 @@
+import { formatAccountDisplay } from "../../lib/accountDisplay.js";
+
 export default function OwnershipHistory({ history }) {
   if (!history?.length) return null;
 
@@ -9,7 +11,10 @@ export default function OwnershipHistory({ history }) {
       <ol className="mt-2 space-y-1 text-xs text-muted font-mono">
         {history.map((h) => (
           <li key={h.id}>
-            {h.acquisition} → {h.owner_account_id}
+            {h.acquisition} →{" "}
+            <span className="text-accent">
+              {formatAccountDisplay(h.owner_account_id, h.ownerEnsName)}
+            </span>
             {h.price_hbar ? ` @ ${h.price_hbar} HBAR` : ""}
             {h.tx_id && (
               <>

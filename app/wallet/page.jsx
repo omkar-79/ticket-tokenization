@@ -11,7 +11,6 @@ import TicketCard from "../components/tickets/TicketCard.jsx";
 import ActiveListingCard from "../components/tickets/ActiveListingCard.jsx";
 import MyBidsPanel from "../components/tickets/MyBidsPanel.jsx";
 import { MarketplaceSaleCard, FormerTicketCard } from "../components/tickets/SaleHistoryCard.jsx";
-import Card from "../components/ui/Card.jsx";
 import Button from "../components/ui/Button.jsx";
 import SegmentedControl from "../components/ui/SegmentedControl.jsx";
 import Alert from "../components/ui/Alert.jsx";
@@ -225,14 +224,6 @@ export default function WalletPage() {
         description="Your tickets, resale listings, and bids."
       />
 
-      {wallet?.user?.ensName && (
-        <Card className="mb-6 space-y-1">
-          <p className="text-xs uppercase tracking-widest text-muted">Your ENS identity</p>
-          <p className="font-mono text-sm text-accent break-all">{wallet.user.ensName}</p>
-          <p className="text-xs text-muted">Others can send you tickets using this name.</p>
-        </Card>
-      )}
-
       {(error || localError) && (
         <div className="mb-6">
           <Alert shakeKey={localError || error}>{localError || error}</Alert>
@@ -275,6 +266,7 @@ export default function WalletPage() {
                 onList={listForResale}
                 actionLoading={actionLoading}
                 ticketHasActiveListing={ticketHasActiveListing}
+                onGateConfirmed={() => refresh()}
               />
             )}
 
@@ -336,7 +328,18 @@ export default function WalletPage() {
   );
 }
 
-function TicketsPanel({ tickets, accountId, askPrices, minBids, onAskChange, onMinBidChange, onList, actionLoading, ticketHasActiveListing }) {
+function TicketsPanel({
+  tickets,
+  accountId,
+  askPrices,
+  minBids,
+  onAskChange,
+  onMinBidChange,
+  onList,
+  actionLoading,
+  ticketHasActiveListing,
+  onGateConfirmed,
+}) {
   if (!tickets?.length) {
     return (
       <p className="text-muted text-sm">
@@ -365,6 +368,7 @@ function TicketsPanel({ tickets, accountId, askPrices, minBids, onAskChange, onM
             listLoading={actionLoading === `list-${key}`}
             hasActiveListing={ticketHasActiveListing(t)}
             faceValue={t.priceHbar}
+            onGateConfirmed={onGateConfirmed}
           />
         );
       })}

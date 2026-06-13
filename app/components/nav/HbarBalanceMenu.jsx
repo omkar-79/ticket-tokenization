@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Button from "../ui/Button.jsx";
 import { useHbarBalance } from "../../hooks/useHbarBalance.js";
+import { useAccount } from "../../hooks/useAccount.js";
+import { formatAccountDisplay } from "../../lib/accountDisplay.js";
 import { useToast } from "../ui/ToastHost.jsx";
 
 const PRESETS = [30, 60, 100];
@@ -15,6 +17,7 @@ function formatBalance(value) {
 
 export default function HbarBalanceMenu({ compact = false, pill = false }) {
   const { balanceHbar, loading, reloadLoading, error, reload, enabled, accountId } = useHbarBalance();
+  const { ensName } = useAccount();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("60");
@@ -55,10 +58,7 @@ export default function HbarBalanceMenu({ compact = false, pill = false }) {
     }
   }
 
-  const shortId =
-    accountId && accountId.length > 12
-      ? `${accountId.slice(0, 6)}…${accountId.slice(-4)}`
-      : accountId;
+  const displayName = formatAccountDisplay(accountId, ensName);
 
   const useSheet = pill || compact;
 
@@ -120,7 +120,7 @@ export default function HbarBalanceMenu({ compact = false, pill = false }) {
                 <p className="text-3xl font-semibold tabular-nums text-text tracking-tight">
                   {loading && balanceHbar == null ? "…" : formatBalance(balanceHbar)}
                 </p>
-                <p className="font-mono text-[11px] text-muted">{shortId}</p>
+                <p className="font-mono text-[11px] text-accent break-all">{displayName}</p>
               </div>
 
               <div className="space-y-2">

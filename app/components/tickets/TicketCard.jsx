@@ -10,7 +10,7 @@ import { fadeUp, fadeUpTransition } from "../../lib/motion.js";
 import { ticketDetailUrl, walletTabUrl } from "../../lib/routes.js";
 import OwnershipHistory from "./OwnershipHistory.jsx";
 import TicketPassQr from "./TicketPassQr.jsx";
-import GateChallengeAlert from "./GateChallengeAlert.jsx";
+import GateEntryConfirm from "./GateEntryConfirm.jsx";
 
 function ticketBadge(ticket) {
   if (ticket.status === "used") {
@@ -53,6 +53,7 @@ export default function TicketCard({
   listLoading,
   hasActiveListing,
   faceValue,
+  onGateConfirmed,
 }) {
   const defaultAsk = askPrice !== undefined && askPrice !== ""
     ? askPrice
@@ -75,7 +76,9 @@ export default function TicketCard({
               #{ticket.serial}
               {ticket.eventSymbol ? ` · ${ticket.eventSymbol}` : ""}
             </p>
-            <p className="font-mono text-xs text-muted mt-1">{ticket.tokenId}</p>
+            <p className="font-mono text-xs text-accent mt-1 break-all">
+              {ticket.ensName ?? ticket.tokenId}
+            </p>
           </div>
           <Badge variant={badge.variant}>{badge.label}</Badge>
         </div>
@@ -88,7 +91,13 @@ export default function TicketCard({
         <OwnershipHistory history={ticket.history} />
 
         {!isCheckedIn && accountId && (
-          <GateChallengeAlert tokenId={ticket.tokenId} serial={ticket.serial} accountId={accountId} />
+          <GateEntryConfirm
+            silent
+            tokenId={ticket.tokenId}
+            serial={ticket.serial}
+            accountId={accountId}
+            onConfirmed={onGateConfirmed}
+          />
         )}
 
         {!isCheckedIn && (

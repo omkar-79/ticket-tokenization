@@ -7,6 +7,7 @@ import { apiGet } from "../lib/api.js";
 export function useAccount() {
   const [accountId, setAccountId] = useState(null);
   const [role, setRole] = useState(null);
+  const [ensName, setEnsName] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -14,14 +15,17 @@ export function useAccount() {
     setAccountId(id);
     if (!id) {
       setRole(null);
+      setEnsName(null);
       setLoading(false);
       return;
     }
     try {
       const data = await apiGet(`/api/wallet/${id}`);
       setRole(data.user?.role ?? null);
+      setEnsName(data.user?.ensName ?? null);
     } catch {
       setRole(null);
+      setEnsName(null);
     } finally {
       setLoading(false);
     }
@@ -40,6 +44,7 @@ export function useAccount() {
   return {
     accountId,
     role,
+    ensName,
     loading,
     isSignedIn: !!accountId,
     isOrganizer: role === "organizer",

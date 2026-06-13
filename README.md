@@ -90,7 +90,7 @@ Three layers prevent the **post-resale QR scam** (seller keeps an old screenshot
 
 **After resale:** Seller's old QR returns *Pass revoked — ticket was resold.*
 
-**Wallet banner:** If the holder is on **My Tickets** when scanned, an orange banner links them to the ticket pass page.
+**Wallet / pass:** World App opens automatically when scanned — works on **My Tickets** or the **ticket pass** page (no extra tap).
 
 Direct check-in without a signed pass is disabled (`POST /api/tokens/{tokenId}/gate-scan` → 410).
 

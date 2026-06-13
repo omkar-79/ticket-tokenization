@@ -14,6 +14,7 @@ import { useCollection } from "../../hooks/useMarketplace.js";
 import { useApiMutation } from "../../hooks/useApi.js";
 import { apiPost } from "../../lib/api.js";
 import { hashscanTokenUrl } from "../../lib/routes.js";
+import { formatAccountDisplay } from "../../lib/accountDisplay.js";
 
 export default function CollectionPage({ params }) {
   const router = useRouter();
@@ -105,7 +106,9 @@ export default function CollectionPage({ params }) {
         title={collection.name}
         description={
           <>
-            <span className="font-mono text-xs">{collection.tokenId}</span>
+            <span className="font-mono text-xs">
+              {formatAccountDisplay(collection.organizerAccountId, collection.organizerEnsName)}
+            </span>
             {" · "}
             {collection.faceValueHbar} HBAR face value
             {" · "}

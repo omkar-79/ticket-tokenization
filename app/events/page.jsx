@@ -13,13 +13,14 @@ import Alert from "../components/ui/Alert.jsx";
 import { CardSkeleton } from "../components/ui/Skeleton.jsx";
 import { useAccount } from "../hooks/useAccount.js";
 import { useOrganizerTokens } from "../hooks/useOrganizer.js";
+import { formatAccountDisplay } from "../lib/accountDisplay.js";
 import { useApiMutation } from "../hooks/useApi.js";
 import { apiPost } from "../lib/api.js";
 import { staggerContainer } from "../lib/motion.js";
 import { useMotionSafe } from "../lib/motion.js";
 
 export default function EventsPage() {
-  const { accountId, isOrganizer, loading: accountLoading } = useAccount();
+  const { accountId, ensName, isOrganizer, loading: accountLoading } = useAccount();
   const { tokens, loading, error, refresh } = useOrganizerTokens();
   const { mutate, loading: creating, error: mutateError, setError } = useApiMutation();
   const [showCreate, setShowCreate] = useState(false);
@@ -217,7 +218,11 @@ export default function EventsPage() {
           animate={{ opacity: 1 }}
           className="mb-6 text-sm text-success border border-success/20 rounded-lg px-4 py-3"
         >
-          Created {createSuccess.tokenId}.{" "}
+          Created {createSuccess.token?.name ?? "Event"} —{" "}
+          <span className="font-mono text-accent">
+            {formatAccountDisplay(accountId, createSuccess.organizerEnsName ?? ensName)}
+          </span>
+          .{" "}
           <Link
             href={`/events/${encodeURIComponent(createSuccess.tokenId)}`}
             className="text-accent underline"

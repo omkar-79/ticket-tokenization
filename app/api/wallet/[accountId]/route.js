@@ -5,6 +5,7 @@ import {
   listFormerTicketsByOwner,
   getOwnershipHistory,
 } from "../../../../src/db/tickets.js";
+import { enrichOwnershipHistory } from "../../../../src/lib/ownershipDisplay.js";
 import { getHbarBalance } from "../../../../src/hedera/mirror.js";
 import { getToken } from "../../../../src/db/tokens.js";
 
@@ -28,7 +29,7 @@ export async function GET(_request, { params }) {
         priceHbar: t.price_hbar,
         acquiredAt: t.acquired_at,
         ensName: t.ens_name ?? null,
-        history: getOwnershipHistory(t.token_id, t.serial),
+        history: enrichOwnershipHistory(getOwnershipHistory(t.token_id, t.serial)),
       };
     });
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTicket, getOwnershipHistory } from "../../../../../src/db/tickets.js";
+import { enrichOwnershipHistory } from "../../../../../src/lib/ownershipDisplay.js";
 
 export async function GET(_request, { params }) {
   try {
@@ -9,7 +10,7 @@ export async function GET(_request, { params }) {
       return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
     }
 
-    const history = getOwnershipHistory(tokenId, Number(serial));
+    const history = enrichOwnershipHistory(getOwnershipHistory(tokenId, Number(serial)));
 
     return NextResponse.json({
       tokenId,

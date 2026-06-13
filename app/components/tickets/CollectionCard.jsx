@@ -8,6 +8,7 @@ import Card from "../ui/Card.jsx";
 import Badge from "../ui/Badge.jsx";
 import { fadeUp, fadeUpTransition } from "../../lib/motion.js";
 import { marketplaceCollectionUrl } from "../../lib/routes.js";
+import { formatAccountDisplay } from "../../lib/accountDisplay.js";
 
 function formatSerials(tickets) {
   const serials = (tickets ?? []).map((t) => t.serial);
@@ -32,6 +33,7 @@ export default function CollectionCard({
   const isPaused = Boolean(item.paused);
   const isPurchasing = embedded ? loading : loading === item.tokenId;
   const totalHbar = item.faceValueHbar * quantity;
+  const collectionLabel = formatAccountDisplay(item.organizerAccountId, item.organizerEnsName);
 
   useEffect(() => {
     setQuantity((prev) => Math.min(Math.max(1, prev), maxQty));
@@ -59,7 +61,9 @@ export default function CollectionCard({
                 </h2>
               </Link>
             )}
-            <p className="text-muted text-xs mt-1 font-mono">{item.symbol} · {item.tokenId}</p>
+            <p className="text-muted text-xs mt-1 font-mono text-accent break-all">
+              {item.symbol} · {collectionLabel}
+            </p>
           </div>
           <div className="flex flex-col items-end gap-2">
             {item.soldOut ? (

@@ -6,6 +6,7 @@ import Card from "../ui/Card.jsx";
 import Badge from "../ui/Badge.jsx";
 import { fadeUp, fadeUpTransition } from "../../lib/motion.js";
 import { hashscanTokenUrl, eventDetailUrl } from "../../lib/routes.js";
+import { formatAccountDisplay } from "../../lib/accountDisplay.js";
 
 export function formatRoyaltyPercent(token) {
   const num = token?.royalty_numerator ?? 10;
@@ -24,6 +25,7 @@ export default function EventCard({ token }) {
   const remaining = token.max_supply - token.minted_count;
   const pct = token.max_supply > 0 ? (token.minted_count / token.max_supply) * 100 : 0;
   const soldOut = token.minted_count >= token.max_supply;
+  const collectionLabel = formatAccountDisplay(token.organizer_account_id, token.organizerEnsName);
 
   return (
     <motion.li {...fadeUp} transition={fadeUpTransition}>
@@ -34,7 +36,9 @@ export default function EventCard({ token }) {
               <h2 className="text-xl font-medium tracking-tight group-hover:text-accent transition-colors">
                 {token.name}
               </h2>
-              <p className="text-muted text-xs mt-1.5 font-mono">{token.symbol} · {token.token_id}</p>
+              <p className="text-muted text-xs mt-1.5 font-mono text-accent break-all">
+                {token.symbol} · {collectionLabel}
+              </p>
             </div>
             <div className="flex gap-2 flex-wrap justify-end">
               {token.paused && <Badge variant="pending">Paused</Badge>}

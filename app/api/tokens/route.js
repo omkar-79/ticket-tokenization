@@ -4,6 +4,13 @@ import { createToken as saveToken, listTokensByOrganizer } from "../../../src/db
 import { getTokenRoyaltySummary } from "../../../src/lib/royalties.js";
 import { getAccountIdFromRequest, requireUser, requireRole } from "../../../src/lib/auth.js";
 
+function withOrganizerEns(token, organizerEnsName) {
+  return {
+    ...token,
+    organizerEnsName: organizerEnsName ?? null,
+  };
+}
+
 export async function GET(request) {
   try {
     const accountId = getAccountIdFromRequest(request);
@@ -13,7 +20,7 @@ export async function GET(request) {
     const user = requireUser(accountId);
     requireRole(user, "organizer");
     const tokens = listTokensByOrganizer(accountId).map((token) => ({
-      ...token,
+      ...withOrganizerEns(token, user.ens_name),
       ...getTokenRoyaltySummary(token.token_id),
     }));
     return NextResponse.json({ tokens });
@@ -81,7 +88,8 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       tokenId: result.tokenId,
-      token,
+      token: withOrganizerEns(token, user.ens_name),
+      organizerEnsName: user.ens_name ?? null,
       hashscanUrl: `https://hashscan.io/testnet/token/${result.tokenId}`,
     });
   } catch (err) {

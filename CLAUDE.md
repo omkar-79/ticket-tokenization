@@ -68,8 +68,7 @@ app/
     events/GateQrScanner.jsx            ← Camera scanner + processing overlay + cancel
     events/EventCompliancePanel.jsx     ← Initiate scan, poll challenge, cancel
     tickets/TicketPassQr.jsx            ← Fetches signed pass from API
-    tickets/GateEntryConfirm.jsx        ← Polls challenge, auto-opens World ID
-    tickets/GateChallengeAlert.jsx      ← Wallet banner → link to pass page
+    tickets/GateEntryConfirm.jsx        ← Polls challenge, auto-opens World ID (wallet + pass)
     world-id/WorldIdTrigger.jsx         ← Shared IDKit v4 (rp_context, autoStart)
   lib/gate.js                           ← parseGateScanPayload (v2 signed pass)
   api/
@@ -242,7 +241,7 @@ Organizer sees success overlay; holder sees check-in animation.
 ### Cancel / retry
 
 - Organizer: **Cancel verification** in scanner overlay, or **Close** scanner → `POST /api/gate-challenges/{id}/cancel`
-- Holder: challenge cleared; wallet banner disappears; organizer can re-scan
+- Holder: challenge cleared; World ID prompt closes; organizer can re-scan
 - If World ID fails: small **Retry World ID** link on pass page (auto-open again)
 
 ### Anti-scam properties

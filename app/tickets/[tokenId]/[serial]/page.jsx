@@ -88,6 +88,7 @@ export default function TicketDetailPage({ params }) {
       <motion.article {...fadeUp} transition={fadeUpTransition}>
         {isOwner && ticket.status !== "used" && accountId && (
           <GateEntryConfirm
+            silent
             tokenId={ticket.tokenId}
             serial={ticket.serial}
             accountId={accountId}
@@ -144,6 +145,7 @@ export default function TicketDetailPage({ params }) {
                 id: h.id,
                 acquisition: h.acquisition,
                 owner_account_id: h.owner_account_id,
+                ownerEnsName: h.ownerEnsName,
                 price_hbar: h.price_hbar,
                 tx_id: h.tx_id,
               }))} />

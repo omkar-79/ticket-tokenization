@@ -7,7 +7,13 @@ import { apiGet, apiPost } from "../../lib/api.js";
 
 const POLL_MS = 2000;
 
-export default function GateEntryConfirm({ tokenId, serial, accountId, onConfirmed }) {
+export default function GateEntryConfirm({
+  tokenId,
+  serial,
+  accountId,
+  onConfirmed,
+  silent = false,
+}) {
   const [challenge, setChallenge] = useState(null);
   const [error, setError] = useState(null);
   const [confirming, setConfirming] = useState(false);
@@ -88,7 +94,42 @@ export default function GateEntryConfirm({ tokenId, serial, accountId, onConfirm
     setNeedsRetry(true);
   }
 
+  function retryWorldId() {
+    setError(null);
+    setNeedsRetry(false);
+    setChallenge((c) => (c ? { ...c, retry: Date.now() } : c));
+  }
+
   if (!challenge) return null;
+
+  const worldId = (
+    <WorldIdTrigger
+      autoStart
+      autoStartKey={challenge.retry ? `${challenge.id}-${challenge.retry}` : challenge.id}
+      hideButton
+      onVerify={handleVerify}
+      onError={handleWorldIdError}
+      disabled={confirming}
+    />
+  );
+
+  if (silent) {
+    return (
+      <>
+        {(error || needsRetry) && (
+          <div className="mb-3 text-xs">
+            {error && <p className="text-error mb-1">{error}</p>}
+            {needsRetry && (
+              <button type="button" onClick={retryWorldId} className="text-accent hover:text-accent-dim">
+                Retry World ID
+              </button>
+            )}
+          </div>
+        )}
+        {worldId}
+      </>
+    );
+  }
 
   return (
     <>
@@ -102,28 +143,12 @@ export default function GateEntryConfirm({ tokenId, serial, accountId, onConfirm
         </p>
         {error && <p className="text-sm text-error mt-3">{error}</p>}
         {needsRetry && (
-          <button
-            type="button"
-            onClick={() => {
-              setError(null);
-              setNeedsRetry(false);
-              setChallenge((c) => (c ? { ...c, retry: Date.now() } : c));
-            }}
-            className="mt-3 text-sm text-accent hover:text-accent-dim"
-          >
+          <button type="button" onClick={retryWorldId} className="mt-3 text-sm text-accent hover:text-accent-dim">
             Retry World ID
           </button>
         )}
       </Card>
-
-      <WorldIdTrigger
-        autoStart
-        autoStartKey={challenge.retry ? `${challenge.id}-${challenge.retry}` : challenge.id}
-        hideButton
-        onVerify={handleVerify}
-        onError={handleWorldIdError}
-        disabled={confirming}
-      />
+      {worldId}
     </>
   );
 }

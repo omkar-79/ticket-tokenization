@@ -12,6 +12,7 @@ import { useAccount } from "../../hooks/useAccount.js";
 import { useEventTickets } from "../../hooks/useOrganizer.js";
 import EventCompliancePanel from "../../components/events/EventCompliancePanel.jsx";
 import { hashscanTokenUrl } from "../../lib/routes.js";
+import { formatAccountDisplay } from "../../lib/accountDisplay.js";
 
 export default function EventDetailPage({ params }) {
   const router = useRouter();
@@ -66,7 +67,9 @@ export default function EventDetailPage({ params }) {
         title={event.name}
         description={
           <>
-            <span className="font-mono text-xs">{event.token_id}</span>
+            <span className="font-mono text-xs text-accent">
+              {formatAccountDisplay(event.organizer_account_id, event.organizerEnsName)}
+            </span>
             {" · "}
             {event.primary_price_hbar} HBAR face value
             {" · "}

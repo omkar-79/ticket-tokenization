@@ -1,13 +1,25 @@
 import "dotenv/config";
+import { getAddress } from "viem";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 
-export const SEPOLIA_ENS_REGISTRY =
-  process.env.ENS_REGISTRY ?? "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e";
-export const SEPOLIA_NAME_WRAPPER =
-  process.env.ENS_NAME_WRAPPER ?? "0x0635513f179D50A207757E05759CbD2d0eFc26F0";
-export const SEPOLIA_PUBLIC_RESOLVER =
-  process.env.ENS_PUBLIC_RESOLVER ?? "0x8FADE66B79cC9f707aB26799354482EB70a82892";
+function ensAddress(envKey, fallback) {
+  const raw = process.env[envKey]?.trim() || fallback;
+  return getAddress(raw);
+}
+
+export const SEPOLIA_ENS_REGISTRY = ensAddress(
+  "ENS_REGISTRY",
+  "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e"
+);
+export const SEPOLIA_NAME_WRAPPER = ensAddress(
+  "ENS_NAME_WRAPPER",
+  "0x0635513f179D50A207757E05759CbD2d0eFc26F0"
+);
+export const SEPOLIA_PUBLIC_RESOLVER = ensAddress(
+  "ENS_PUBLIC_RESOLVER",
+  "0x8FADE66B79cC9f707aB26799354482EB70a82892"
+);
 
 export function isEnsConfigured() {
   return Boolean(

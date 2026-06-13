@@ -79,39 +79,45 @@ export default function OnboardingPage() {
     setError(null);
     setDuplicate(false);
 
-    if (ENS_ENABLED && !ensLabel.trim()) {
-      throw new Error("Choose a name for your wallet");
-    }
-    if (ENS_ENABLED && ensStatus && !ensStatus.available) {
-      throw new Error("Name is not available");
-    }
-    if (role === "organizer" && !organizerInviteCode.trim()) {
-      throw new Error("Organizer invitation code is required");
-    }
-
-    const res = await fetch("/api/verify-and-onboard", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        proof,
-        role,
-        ensLabel: ensLabel.trim() || undefined,
-        ...(role === "organizer"
-          ? { organizerInviteCode: organizerInviteCode.trim() }
-          : {}),
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      if (res.status === 409) {
-        setDuplicate(true);
-        throw new Error("This identity already has a wallet. Use Log in instead.");
+    try {
+      if (ENS_ENABLED && !ensLabel.trim()) {
+        throw new Error("Choose a name for your wallet");
       }
-      throw new Error(data.error ?? "Onboarding failed");
+      if (ENS_ENABLED && ensStatus && !ensStatus.available) {
+        throw new Error("Name is not available");
+      }
+      if (role === "organizer" && !organizerInviteCode.trim()) {
+        throw new Error("Organizer invitation code is required");
+      }
+
+      const res = await fetch("/api/verify-and-onboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          proof,
+          role,
+          ensLabel: ensLabel.trim() || undefined,
+          ...(role === "organizer"
+            ? { organizerInviteCode: organizerInviteCode.trim() }
+            : {}),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 409) {
+          setDuplicate(true);
+          throw new Error("This identity already has a wallet. Use Log in instead.");
+        }
+        throw new Error(data.error ?? "Onboarding failed");
+      }
+      setResult(data);
+      setStoredAccountId(data.accountId);
+      return data;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Onboarding failed";
+      setError(message);
+      throw e;
     }
-    setResult(data);
-    setStoredAccountId(data.accountId);
-    return data;
   }
 
   if (!process.env.NEXT_PUBLIC_WORLD_APP_ID || !process.env.NEXT_PUBLIC_WORLD_ACTION) {
