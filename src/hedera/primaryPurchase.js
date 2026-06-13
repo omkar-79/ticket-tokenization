@@ -9,6 +9,10 @@ import {
 } from "../ens/identity.js";
 import { provisionTicketSubname } from "../ens/provision.js";
 import { isEnsConfigured } from "../ens/config.js";
+import {
+  buildPrimarySaleEvent,
+  logAuditEvent,
+} from "../lib/auditEvents.js";
 
 export async function primaryPurchase({
   tokenId,
@@ -90,6 +94,17 @@ export async function primaryPurchase({
     priceHbar,
     txId: result.txId,
   });
+
+  await logAuditEvent(
+    buildPrimarySaleEvent({
+      tokenId,
+      serial,
+      buyer: buyerAccountId,
+      seller: organizer.account_id,
+      priceHbar,
+      txId: result.txId,
+    })
+  );
 
   return {
     serial,

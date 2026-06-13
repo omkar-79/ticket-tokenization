@@ -94,6 +94,7 @@ src/
   state.js
   lib/
     auth.js
+    auditEvents.js                      ← HCS payload builders + best-effort submit
     gatePass.js                         ← HMAC v2 pass create/verify/encode
   gate/
     validatePass.js                     ← Sig + DB gen + Mirror owner
@@ -107,6 +108,7 @@ src/
     createToken.js, createAccount.js, mintTicket.js
     primaryPurchase.js, transferTicket.js, settleResale.js
     compliance.js, venue.js             ← scanTicketAtGate, reset
+    auditLog.js                         ← TopicCreate + TopicMessageSubmit
     mirror.js                           ← getNftOwner, getHbarBalance
 
 scripts/
@@ -119,6 +121,7 @@ scripts/
   07-scan-gate.js                       ← CLI gate (bypasses World ID challenge — dev only)
   08-pause-match.js
   09-unfreeze.js
+  10-create-audit-topic.js              ← One-time HCS audit topic setup
   promote-organizer.js
   reset-db.js
   setup-dev-https.js                    ← Local certs for npm run dev:https
@@ -273,6 +276,9 @@ Organizer sees success overlay; holder sees check-in animation.
 OPERATOR_ID=0.0.xxxx
 OPERATOR_KEY=0x...
 
+# HCS audit log — optional; run node scripts/10-create-audit-topic.js once
+HCS_AUDIT_TOPIC_ID=0.0.xxxx
+
 WORLD_APP_ID=app_xxx
 WORLD_RP_ID=rp_xxx
 WORLD_RP_SIGNING_KEY=0x...
@@ -360,12 +366,12 @@ node scripts/reset-db.js
 - [x] Marketplace, wallet, organizer, events UI
 - [x] **Gate security:** signed QR + pass_generation + Mirror Node + World ID challenge/confirm
 - [x] Organizer gate scanner (HTTPS), cancel verification, holder auto World ID
-- [x] CLI scripts 01–03, 05–09, promote-organizer, reset-db, setup-dev-https
+- [x] CLI scripts 01–03, 05–10, promote-organizer, reset-db, setup-dev-https
+- [x] **HCS audit log** — ticket lifecycle events on Consensus Service topic (No-Solidity prize)
 
 **Up next**
-1. HCS audit log — every ticket event on a Consensus Service topic (No-Solidity prize)
-2. Push notification when gate challenge created (optional — banner + auto-open covers MVP)
-3. USDC payment option
+1. Push notification when gate challenge created (optional — banner + auto-open covers MVP)
+2. USDC payment option
 
 ---
 

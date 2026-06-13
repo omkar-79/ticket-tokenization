@@ -17,8 +17,9 @@ export async function freezeHolder({ tokenId, accountId, freezeKeyDer }) {
       .setTokenId(tokenId)
       .freezeWith(client)
       .sign(freezeKey);
-    const receipt = await (await tx.execute(client)).getReceipt(client);
-    return { status: receipt.status.toString() };
+    const response = await tx.execute(client);
+    const receipt = await response.getReceipt(client);
+    return { txId: response.transactionId.toString(), status: receipt.status.toString() };
   } finally {
     client.close();
   }
@@ -34,8 +35,9 @@ export async function unfreezeHolder({ tokenId, accountId, freezeKeyDer }) {
       .setTokenId(tokenId)
       .freezeWith(client)
       .sign(freezeKey);
-    const receipt = await (await tx.execute(client)).getReceipt(client);
-    return { status: receipt.status.toString() };
+    const response = await tx.execute(client);
+    const receipt = await response.getReceipt(client);
+    return { txId: response.transactionId.toString(), status: receipt.status.toString() };
   } finally {
     client.close();
   }
@@ -51,8 +53,9 @@ export async function pauseToken({ tokenId, pauseKeyDer }) {
       .setTokenId(tokenId)
       .freezeWith(client)
       .sign(pauseKey);
-    const receipt = await (await tx.execute(client)).getReceipt(client);
-    return { status: receipt.status.toString() };
+    const response = await tx.execute(client);
+    const receipt = await response.getReceipt(client);
+    return { txId: response.transactionId.toString(), status: receipt.status.toString() };
   } finally {
     client.close();
   }
@@ -66,8 +69,9 @@ export async function unpauseToken({ tokenId, pauseKeyDer }) {
       .setTokenId(tokenId)
       .freezeWith(client)
       .sign(pauseKey);
-    const receipt = await (await tx.execute(client)).getReceipt(client);
-    return { status: receipt.status.toString() };
+    const response = await tx.execute(client);
+    const receipt = await response.getReceipt(client);
+    return { txId: response.transactionId.toString(), status: receipt.status.toString() };
   } finally {
     client.close();
   }

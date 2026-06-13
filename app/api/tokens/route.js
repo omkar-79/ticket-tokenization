@@ -3,6 +3,10 @@ import { createTicketToken } from "../../../src/hedera/createToken.js";
 import { createToken as saveToken, listTokensByOrganizer } from "../../../src/db/tokens.js";
 import { getTokenRoyaltySummary } from "../../../src/lib/royalties.js";
 import { getAccountIdFromRequest, requireUser, requireRole } from "../../../src/lib/auth.js";
+import {
+  buildCollectionCreatedEvent,
+  logAuditEvent,
+} from "../../../src/lib/auditEvents.js";
 
 function withOrganizerEns(token, organizerEnsName) {
   return {
@@ -84,6 +88,18 @@ export async function POST(request) {
       royaltyDenominator,
       keys: result.keys,
     });
+
+    await logAuditEvent(
+      buildCollectionCreatedEvent({
+        tokenId: result.tokenId,
+        name,
+        maxSupply: Number(maxSupply),
+        faceValueHbar: primaryPriceHbar,
+        organizer: user.account_id,
+        royaltyNumerator,
+        royaltyDenominator,
+      })
+    );
 
     return NextResponse.json({
       success: true,

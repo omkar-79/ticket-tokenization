@@ -2,15 +2,18 @@
 
 Event tickets as Hedera NFTs with human-verified wallets, readable ENS names, and secure gate check-in.
 
-Each ticket is minted on purchase (not pre-minted inventory), resold with an on-chain royalty, and checked in at the venue via a signed QR that only the current holder can confirm with World ID.
+Each ticket is minted on purchase , resold with an on-chain resell fee (royalty), and checked in at the venue via a signed QR that only the current holder can confirm with World ID.
 
 ---
 
-## What we use from each stack
+## What we use 
 
 ### Hedera (`@hashgraph/sdk`, testnet)
 
-All token logic runs through **Hedera Token Service (HTS)** — no Solidity contracts.
+We use **two native Hedera services** — no Solidity contracts:
+
+- **HTS (Hedera Token Service)** — NFT collections, mint-on-buy, atomic swaps, royalties, freeze/pause compliance
+- **HCS (Hedera Consensus Service)** — append-only audit log of ticket lifecycle events, linked to HTS transaction IDs
 
 | Feature | How we use it |
 |---|---|
@@ -22,9 +25,12 @@ All token logic runs through **Hedera Token Service (HTS)** — no Solidity cont
 | **Pause (compliance)** | `TokenPauseTransaction` / `Unpause` lets organizers halt an entire event collection |
 | **Token keys** | Admin, supply, freeze, pause, and metadata keys set at creation and stored in SQLite for operator-signed actions |
 | **Mirror Node** | REST queries to confirm live NFT owner and HBAR balance (gate validation, wallet UI) |
+| **HCS audit log** | After each successful HTS action, the backend submits compact JSON to one global topic via `TopicMessageSubmitTransaction` (operator `submitKey` only). Events: `collection_created`, `primary_sale`, `secondary_sale`, `gate_checkin`, `match_paused` / `match_resumed`. SQLite stays the live app DB; HCS is a tamper-proof public mirror — verify on [HashScan topic](https://hashscan.io/testnet/topic/0.0.9227030) or Mirror Node. |
 | **Custodial accounts** | Operator creates and funds user accounts; signs txs on their behalf for demo UX |
 
-**Lifecycle on testnet:** create collection → mint serial on buy → atomic resale (royalty auto-deducted) → freeze holder at gate.
+**HCS setup (once):** run `node scripts/10-create-audit-topic.js` and set `HCS_AUDIT_TOPIC_ID` in `.env`. If unset, audit logging is skipped (dev-friendly).
+
+**Lifecycle on testnet:** create collection → mint serial on buy → atomic resale (royalty auto-deducted) → freeze holder at gate — with each step optionally logged to HCS.
 
 ### World ID (`@worldcoin/idkit` v4)
 
@@ -68,6 +74,7 @@ Replace IDs with your own testnet values after running a demo.
 | **NFT collection (token)** | `https://hashscan.io/testnet/token/0.0.YOUR_TOKEN_ID` |
 | **Specific ticket serial** | `https://hashscan.io/testnet/token/0.0.YOUR_TOKEN_ID?type=nft&serial=1` |
 | **Primary or resale tx** | `https://hashscan.io/testnet/transaction/YOUR_TX_ID` |
+| **HCS audit topic** | `https://hashscan.io/testnet/topic/0.0.YOUR_TOPIC_ID` |
 
 Example tx IDs appear in the app after buy/resale (ownership history **tx** link) and in API responses as `txId`.
 
@@ -108,7 +115,7 @@ npm install
 
 ### 2. Environment
 
-Copy the example file and fill in your keys:
+Copy the example file, it has test env values (which makes it faster to run locally):
 
 ```bash
 cp .env.example .env
@@ -123,7 +130,6 @@ Minimum to run locally:
 - `GATE_QR_SECRET` (any long random string)
 - `APP_BASE_URL`, `ADMIN_SECRET`, `ORGANIZER_INVITE_CODE`
 
-ENS variables are optional for a first run.
 
 ### 3. Start the app
 
@@ -227,6 +233,7 @@ Run after the app has started once (operator seeded in DB):
 
 ```bash
 node scripts/01-check-balance.js
+node scripts/10-create-audit-topic.js              # once — HCS audit log topic
 node scripts/02-create-token.js 100 50 "Jazz Day" JD
 node scripts/03-create-account.js              # dev bypass — no World ID
 node scripts/05-primary-sale.js

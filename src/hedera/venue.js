@@ -1,6 +1,12 @@
 import { freezeHolder, unfreezeHolder, pauseToken, unpauseToken } from "./compliance.js";
 import { getToken, setTokenPaused } from "../db/tokens.js";
 import { getTicket, getCurrentOwner, updateTicketStatus, ownedStatusForTicket } from "../db/tickets.js";
+import {
+  buildGateCheckinEvent,
+  buildMatchPausedEvent,
+  buildMatchResumedEvent,
+  logAuditEvent,
+} from "../lib/auditEvents.js";
 
 export async function scanTicketAtGate({ tokenId, serial }) {
   const token = getToken(tokenId);
@@ -34,6 +40,15 @@ export async function scanTicketAtGate({ tokenId, serial }) {
   });
 
   updateTicketStatus(tokenId, serial, "used");
+
+  await logAuditEvent(
+    buildGateCheckinEvent({
+      tokenId,
+      serial,
+      owner: owner.owner_account_id,
+      txId: result.txId,
+    })
+  );
 
   return {
     serial,
@@ -90,6 +105,8 @@ export async function pauseMatch({ tokenId }) {
 
   setTokenPaused(tokenId, true);
 
+  await logAuditEvent(buildMatchPausedEvent({ tokenId, txId: result.txId }));
+
   return {
     status: result.status,
     message: "Match paused — no ticket transfers for this event",
@@ -111,6 +128,8 @@ export async function unpauseMatch({ tokenId }) {
   });
 
   setTokenPaused(tokenId, false);
+
+  await logAuditEvent(buildMatchResumedEvent({ tokenId, txId: result.txId }));
 
   return {
     status: result.status,

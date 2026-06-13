@@ -10,6 +10,10 @@ import { requireUser } from "../lib/auth.js";
 import { assertTokenTransferable, assertTicketResellable } from "../lib/ticketGuards.js";
 import { updateEnsTextRecords } from "../ens/provision.js";
 import { checkSecondaryCap } from "../lib/secondaryCap.js";
+import {
+  buildSecondarySaleEvent,
+  logAuditEvent,
+} from "../lib/auditEvents.js";
 
 export async function settleSecondarySale({
   tokenId,
@@ -57,6 +61,17 @@ export async function settleSecondarySale({
     priceHbar: Number(priceHbar),
     txId: result.txId,
   });
+
+  await logAuditEvent(
+    buildSecondarySaleEvent({
+      tokenId,
+      serial,
+      seller: seller.account_id,
+      buyer: buyer.account_id,
+      priceHbar: Number(priceHbar),
+      txId: result.txId,
+    })
+  );
 
   const ticket = getTicket(tokenId, serial);
   let ensUpdate = null;
