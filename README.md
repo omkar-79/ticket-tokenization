@@ -65,7 +65,7 @@ ENS is optional — leave `ENS_*` unset and the app falls back to Hedera account
 
 ### HashScan (Hedera testnet explorer)
 
-| What | Example (from local `data/users.db`) |
+| What | URL |
 |---|---|
 | **Operator account** | `https://hashscan.io/testnet/account/0.0.9185833` |
 | **Organizer account** | `https://hashscan.io/testnet/account/0.0.9226476` |
@@ -79,7 +79,7 @@ ENS is optional — leave `ENS_*` unset and the app falls back to Hedera account
 
 ### ENS (Sepolia)
 
-| What | Example (from Sepolia + local `data/users.db`) |
+| What | URL |
 |---|---|
 | **User name** | `https://app.ens.domains/jim.fairpass.eth` |
 | **Ticket name** | `https://app.ens.domains/jazz-day-0-0-9226502-1.fairpass.eth` |
@@ -96,7 +96,11 @@ Each ENS name uses two on-chain steps: `setSubnodeRecord` on the NameWrapper, th
 |---|---|
 | **Developer portal** | https://developer.worldcoin.org |
 | **Local simulator** | https://simulator.worldcoin.org |
-| **Verify API (server)** | `POST https://developer.world.org/api/v4/verify/{WORLD_RP_ID}` |
+| **Verify API docs** | https://docs.world.org/world-id/reference/api-v4 |
+| **Verify API (server, production)** | `POST https://developer.world.org/api/v4/verify/rp_6e6f4b926145751e` |
+| **Verify API (server, staging)** | `POST https://staging-developer.worldcoin.org/api/v4/verify/rp_6e6f4b926145751e` |
+
+The verify URL is **not a browser link**. It only accepts `POST` with the IDKit proof JSON from your backend (`src/world/verifyProof.js`). Opening it in a tab returns 405. Example: `POST .../api/v4/verify/rp_6e6f4b926145751e` with an empty body returns 400 (`action is required`), which confirms the host is up.
 
 ---
 
