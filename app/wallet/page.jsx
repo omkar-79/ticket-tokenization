@@ -23,6 +23,7 @@ import { useAccount } from "../hooks/useAccount.js";
 import { useToast } from "../components/ui/ToastHost.jsx";
 import { apiPost, apiDelete } from "../lib/api.js";
 import { fetchRpContext, getWorldIdClientConfig } from "../lib/worldId.js";
+import { useClientConfig } from "../hooks/useClientConfig.js";
 import { ticketDetailUrl, walletTabUrl } from "../lib/routes.js";
 import { fadeUpTransition } from "../lib/motion.js";
 
@@ -51,7 +52,8 @@ export default function WalletPage() {
   const [confirmBidId, setConfirmBidId] = useState(null);
   const [worldIdOpen, setWorldIdOpen] = useState(false);
   const [requestConfig, setRequestConfig] = useState(null);
-  const { appId, action, environment } = getWorldIdClientConfig();
+  const { config } = useClientConfig();
+  const { appId, action, environment } = getWorldIdClientConfig(config);
 
   useEffect(() => {
     if (!accountLoading && isOrganizer) {

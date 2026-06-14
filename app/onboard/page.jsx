@@ -13,6 +13,8 @@ import Input from "../components/ui/Input.jsx";
 import { setStoredAccountId } from "../lib/storage.js";
 import { getPostAuthPath, hashscanAccountUrl } from "../lib/routes.js";
 import { fadeUp, fadeUpTransition } from "../lib/motion.js";
+import { useClientConfig } from "../hooks/useClientConfig.js";
+import { CardSkeleton } from "../components/ui/Skeleton.jsx";
 
 const roles = [
   {
@@ -27,12 +29,12 @@ const roles = [
   },
 ];
 
-const ENS_PARENT = process.env.NEXT_PUBLIC_ENS_PARENT_NAME ?? "fairpass.eth";
-const ENS_ENABLED = Boolean(process.env.NEXT_PUBLIC_ENS_PARENT_NAME);
-
 export default function OnboardingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { config, loading: configLoading, worldIdReady } = useClientConfig();
+  const ensParent = config?.ensParentName ?? "fairpass.eth";
+  const ensEnabled = Boolean(config?.ensEnabled);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [role, setRole] = useState("purchaser");
@@ -53,7 +55,7 @@ export default function OnboardingPage() {
   }, [result, duplicate, role, next, router]);
 
   useEffect(() => {
-    if (!ENS_ENABLED || !ensLabel.trim()) {
+    if (!ensEnabled || !ensLabel.trim()) {
       setEnsStatus(null);
       return;
     }
@@ -80,10 +82,10 @@ export default function OnboardingPage() {
     setDuplicate(false);
 
     try {
-      if (ENS_ENABLED && !ensLabel.trim()) {
+      if (ensEnabled && !ensLabel.trim()) {
         throw new Error("Choose a name for your wallet");
       }
-      if (ENS_ENABLED && ensStatus && !ensStatus.available) {
+      if (ensEnabled && ensStatus && !ensStatus.available) {
         throw new Error("Name is not available");
       }
       if (role === "organizer" && !organizerInviteCode.trim()) {
@@ -120,16 +122,27 @@ export default function OnboardingPage() {
     }
   }
 
-  if (!process.env.NEXT_PUBLIC_WORLD_APP_ID || !process.env.NEXT_PUBLIC_WORLD_ACTION) {
+  if (configLoading) {
     return (
       <PageTransition>
-        <PageHeader title="Configuration required" description="Set NEXT_PUBLIC_WORLD_APP_ID and NEXT_PUBLIC_WORLD_ACTION in your .env file." />
+        <CardSkeleton />
+      </PageTransition>
+    );
+  }
+
+  if (!worldIdReady) {
+    return (
+      <PageTransition>
+        <PageHeader
+          title="Configuration required"
+          description="Set WORLD_APP_ID and WORLD_ACTION (or NEXT_PUBLIC_WORLD_APP_ID and NEXT_PUBLIC_WORLD_ACTION) in Cloud Run environment variables."
+        />
       </PageTransition>
     );
   }
 
   const fullEnsPreview = ensLabel.trim()
-    ? `${ensLabel.trim().toLowerCase()}.${ENS_PARENT}`
+    ? `${ensLabel.trim().toLowerCase()}.${ensParent}`
     : null;
 
   return (
@@ -174,7 +187,7 @@ export default function OnboardingPage() {
               ))}
             </div>
 
-            {ENS_ENABLED && (
+            {ensEnabled && (
               <div className="mb-8 space-y-2">
                 <label className="block">
                   <span className="text-xs text-muted uppercase tracking-widest">Your name</span>
@@ -186,7 +199,7 @@ export default function OnboardingPage() {
                       autoComplete="off"
                       spellCheck={false}
                     />
-                    <span className="text-sm text-muted whitespace-nowrap">.{ENS_PARENT}</span>
+                    <span className="text-sm text-muted whitespace-nowrap">.{ensParent}</span>
                   </div>
                 </label>
                 {fullEnsPreview && (

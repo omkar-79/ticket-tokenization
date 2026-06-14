@@ -12,10 +12,13 @@ import Alert from "../components/ui/Alert.jsx";
 import { setStoredAccountId } from "../lib/storage.js";
 import { getPostAuthPath } from "../lib/routes.js";
 import { fadeUp, fadeUpTransition } from "../lib/motion.js";
+import { useClientConfig } from "../hooks/useClientConfig.js";
+import { CardSkeleton } from "../components/ui/Skeleton.jsx";
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { loading: configLoading, worldIdReady } = useClientConfig();
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
@@ -43,10 +46,21 @@ export default function LoginPage() {
     return data;
   }
 
-  if (!process.env.NEXT_PUBLIC_WORLD_APP_ID || !process.env.NEXT_PUBLIC_WORLD_ACTION) {
+  if (configLoading) {
     return (
       <PageTransition>
-        <PageHeader title="Configuration required" description="Set NEXT_PUBLIC_WORLD_APP_ID and NEXT_PUBLIC_WORLD_ACTION in your .env file." />
+        <CardSkeleton />
+      </PageTransition>
+    );
+  }
+
+  if (!worldIdReady) {
+    return (
+      <PageTransition>
+        <PageHeader
+          title="Configuration required"
+          description="Set WORLD_APP_ID and WORLD_ACTION (or NEXT_PUBLIC_WORLD_APP_ID and NEXT_PUBLIC_WORLD_ACTION) in Cloud Run environment variables."
+        />
       </PageTransition>
     );
   }

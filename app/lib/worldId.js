@@ -13,7 +13,14 @@ export async function fetchRpContext() {
   };
 }
 
-export function getWorldIdClientConfig() {
+export function getWorldIdClientConfig(clientConfig) {
+  if (clientConfig) {
+    return {
+      appId: clientConfig.worldAppId,
+      action: clientConfig.worldAction,
+      environment: clientConfig.worldEnvironment ?? "staging",
+    };
+  }
   return {
     appId: process.env.NEXT_PUBLIC_WORLD_APP_ID,
     action: process.env.NEXT_PUBLIC_WORLD_ACTION,

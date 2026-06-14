@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { IDKitRequestWidget, deviceLegacy } from "@worldcoin/idkit";
 import Button from "../ui/Button.jsx";
 import { fetchRpContext, getWorldIdClientConfig } from "../../lib/worldId.js";
+import { useClientConfig } from "../../hooks/useClientConfig.js";
 
 export default function WorldIdTrigger({
   label = "Verify with World ID",
@@ -20,7 +21,8 @@ export default function WorldIdTrigger({
   const [loading, setLoading] = useState(false);
   const lastAutoStartKeyRef = useRef(null);
 
-  const { appId, action, environment } = getWorldIdClientConfig();
+  const { config, loading: configLoading } = useClientConfig();
+  const { appId, action, environment } = getWorldIdClientConfig(config);
 
   const handleOpen = useCallback(async () => {
     if (disabled) return;
@@ -56,6 +58,7 @@ export default function WorldIdTrigger({
     onSuccess?.(result);
   }
 
+  if (configLoading) return null;
   if (!appId || !action) return null;
 
   return (
