@@ -1,0 +1,22 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_WORLD_APP_ID: ${NEXT_PUBLIC_WORLD_APP_ID}
+        NEXT_PUBLIC_WORLD_ACTION: ${NEXT_PUBLIC_WORLD_ACTION}
+        NEXT_PUBLIC_WORLD_ENVIRONMENT: ${NEXT_PUBLIC_WORLD_ENVIRONMENT:-production}
+        NEXT_PUBLIC_ENS_PARENT_NAME: ${NEXT_PUBLIC_ENS_PARENT_NAME:-}
+        NEXT_PUBLIC_GATE_POLL_MS: ${NEXT_PUBLIC_GATE_POLL_MS:-2500}
+        NEXT_PUBLIC_GATE_PASS_REFRESH_MS: ${NEXT_PUBLIC_GATE_PASS_REFRESH_MS:-60000}
+        NEXT_PUBLIC_LISTING_POLL_MS: ${NEXT_PUBLIC_LISTING_POLL_MS:-15000}
+        NEXT_PUBLIC_BALANCE_POLL_MS: ${NEXT_PUBLIC_BALANCE_POLL_MS:-20000}
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      APP_BASE_URL: http://localhost:8080
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

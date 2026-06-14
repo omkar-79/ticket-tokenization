@@ -1,0 +1,50 @@
+FROM node:20-bookworm-slim AS builder
+
+WORKDIR /app
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+
+ARG NEXT_PUBLIC_WORLD_APP_ID
+ARG NEXT_PUBLIC_WORLD_ACTION
+ARG NEXT_PUBLIC_WORLD_ENVIRONMENT=production
+ARG NEXT_PUBLIC_ENS_PARENT_NAME
+ARG NEXT_PUBLIC_GATE_POLL_MS=2500
+ARG NEXT_PUBLIC_GATE_PASS_REFRESH_MS=60000
+ARG NEXT_PUBLIC_LISTING_POLL_MS=15000
+ARG NEXT_PUBLIC_BALANCE_POLL_MS=20000
+ENV NEXT_PUBLIC_WORLD_APP_ID=$NEXT_PUBLIC_WORLD_APP_ID
+ENV NEXT_PUBLIC_WORLD_ACTION=$NEXT_PUBLIC_WORLD_ACTION
+ENV NEXT_PUBLIC_WORLD_ENVIRONMENT=$NEXT_PUBLIC_WORLD_ENVIRONMENT
+ENV NEXT_PUBLIC_ENS_PARENT_NAME=$NEXT_PUBLIC_ENS_PARENT_NAME
+ENV NEXT_PUBLIC_GATE_POLL_MS=$NEXT_PUBLIC_GATE_POLL_MS
+ENV NEXT_PUBLIC_GATE_PASS_REFRESH_MS=$NEXT_PUBLIC_GATE_PASS_REFRESH_MS
+ENV NEXT_PUBLIC_LISTING_POLL_MS=$NEXT_PUBLIC_LISTING_POLL_MS
+ENV NEXT_PUBLIC_BALANCE_POLL_MS=$NEXT_PUBLIC_BALANCE_POLL_MS
+
+RUN npm run build
+
+FROM node:20-bookworm-slim AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+ENV PORT=8080
+
+COPY --from=builder /app/package.json /app/package-lock.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/next.config.js ./
+COPY --from=builder /app/app ./app
+COPY --from=builder /app/src ./src
+
+EXPOSE 8080
+
+CMD ["npm", "start"]

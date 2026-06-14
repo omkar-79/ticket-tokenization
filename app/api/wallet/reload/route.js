@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAccountIdFromRequest, requireUser, requireRole } from "../../../../src/lib/auth.js";
 import { fundUserAccount } from "../../../../src/hedera/fundAccount.js";
 import { getHbarBalance } from "../../../../src/hedera/mirror.js";
-import { operatorId } from "../../../../src/client.js";
+import { getOperatorId } from "../../../../src/client.js";
 
 const DEFAULT_RELOAD_HBAR = Number(process.env.RELOAD_HBAR_AMOUNT ?? 60);
 const MAX_RELOAD_HBAR = Number(process.env.MAX_RELOAD_HBAR ?? 200);
@@ -36,7 +36,7 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       amountHbar,
-      fundedFrom: operatorId.toString(),
+      fundedFrom: getOperatorId().toString(),
       balanceHbar,
       transactionId: result.transactionId,
       hashscanUrl: result.hashscanUrl,

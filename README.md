@@ -62,29 +62,33 @@ ENS is optional — leave `ENS_*` unset and the app falls back to Hedera account
 
 ---
 
-## Links you can put in the README as live examples
-
-Replace IDs with your own testnet values after running a demo.
 
 ### HashScan (Hedera testnet explorer)
 
-| What | URL pattern |
+| What | Example (from local `data/users.db`) |
 |---|---|
-| **Operator / user account** | `https://hashscan.io/testnet/account/0.0.YOUR_ACCOUNT` |
-| **NFT collection (token)** | `https://hashscan.io/testnet/token/0.0.YOUR_TOKEN_ID` |
-| **Specific ticket serial** | `https://hashscan.io/testnet/token/0.0.YOUR_TOKEN_ID?type=nft&serial=1` |
-| **Primary or resale tx** | `https://hashscan.io/testnet/transaction/YOUR_TX_ID` |
-| **HCS audit topic** | `https://hashscan.io/testnet/topic/0.0.YOUR_TOPIC_ID` |
+| **Operator account** | `https://hashscan.io/testnet/account/0.0.9185833` |
+| **Organizer account** | `https://hashscan.io/testnet/account/0.0.9226476` |
+| **NFT collection — Jazz Day** | `https://hashscan.io/testnet/token/0.0.9226502` |
+| **NFT collection — Rock Day** | `https://hashscan.io/testnet/token/0.0.9228809` |
+| **Specific ticket serial** | `https://hashscan.io/testnet/token/0.0.9226502?type=nft&serial=1` |
+| **Primary sale tx** | `https://hashscan.io/testnet/transaction/0.0.9185833@1781414269.265688337` |
+| **Resale tx** | `https://hashscan.io/testnet/transaction/0.0.9185833@1781413914.542150194` |
+| **HCS audit topic** | `https://hashscan.io/testnet/topic/0.0.9227030` |
 
-Example tx IDs appear in the app after buy/resale (ownership history **tx** link) and in API responses as `txId`.
 
 ### ENS (Sepolia)
 
-| What | URL pattern |
+| What | Example (from Sepolia + local `data/users.db`) |
 |---|---|
 | **User name** | `https://app.ens.domains/jim.fairpass.eth` |
 | **Ticket name** | `https://app.ens.domains/jazz-day-0-0-9226502-1.fairpass.eth` |
-| **Sepolia resolver tx** | `https://sepolia.etherscan.io/tx/0x...` (from ENS provisioning logs) |
+| **User subname create tx** | `https://sepolia.etherscan.io/tx/0x79fc3f2941927c9d3c79b333667dffc4360c81862dff3412e529131a7faad632` |
+| **User resolver `setText` tx** | `https://sepolia.etherscan.io/tx/0x60ff431369e6b5ea9b54fe36790e172c1ae6e438eef36bee5b15d217711cc854` |
+| **Ticket subname create tx** | `https://sepolia.etherscan.io/tx/0x6d7788afc2c2e9a8f6f2d5ee7c37100915d9ed368aa08676c05bc7c3116a4cb7` |
+| **Ticket resolver `setText` tx** | `https://sepolia.etherscan.io/tx/0x3025e315af3c9429ed2c1f740e261e1c0465b63a8fc86a7ff8fa2f75a118d82b` |
+
+Each ENS name uses two on-chain steps: `setSubnodeRecord` on the NameWrapper, then `setText` on the public resolver. Tx hashes are returned in onboard/buy API responses as `ens.txHashes` but are not stored in SQLite.
 
 ### World ID
 
@@ -108,7 +112,7 @@ Example tx IDs appear in the app after buy/resale (ownership history **tx** link
 ### 1. Clone and install
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/omkar-79/ticket-tokenization.git
 cd ticket-tokenization
 npm install
 ```
@@ -120,8 +124,7 @@ Copy the example file, it has test env values (which makes it faster to run loca
 ```bash
 cp .env.example .env
 ```
-
-Open `.env` and set every value. Comments in `.env.example` explain each group (Hedera, World ID, ENS, gate). **Never commit `.env`.**
+Comments in `.env.example` explain each group (Hedera, World ID, ENS, gate). **Never commit `.env`.**
 
 Minimum to run locally:
 

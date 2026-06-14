@@ -1,11 +1,11 @@
 import { TransferTransaction, Hbar, AccountId } from "@hashgraph/sdk";
-import { getClient, operatorId } from "../client.js";
+import { getClient, getOperatorId } from "../client.js";
 
 export async function fundUserAccount(recipientAccountId, amountHbar) {
   const client = getClient();
   try {
     const tx = await new TransferTransaction()
-      .addHbarTransfer(operatorId, new Hbar(-amountHbar))
+      .addHbarTransfer(getOperatorId(), new Hbar(-amountHbar))
       .addHbarTransfer(AccountId.fromString(recipientAccountId), new Hbar(amountHbar))
       .execute(client);
     const receipt = await tx.getReceipt(client);

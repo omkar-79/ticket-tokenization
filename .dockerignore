@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.env
+.env.*
+data
+certificates
+state.json
+*.db
+.DS_Store
+README.md
+CLAUDE.md
+hedera-ticket-build-guide.md
+scripts
+agent-transcripts

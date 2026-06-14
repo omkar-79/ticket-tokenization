@@ -1,4 +1,4 @@
-import { getClient, operatorKey } from "../client.js";
+import { getClient, getOperatorKey } from "../client.js";
 import { submitAuditEvent } from "../hedera/auditLog.js";
 
 const TOPIC_ID = process.env.HCS_AUDIT_TOPIC_ID?.trim() || null;
@@ -81,7 +81,7 @@ export async function logAuditEvent(payload) {
     return await submitAuditEvent({
       client,
       topicId: TOPIC_ID,
-      operatorKey,
+      operatorKey: getOperatorKey(),
       payload,
     });
   } catch (err) {
